@@ -8,8 +8,7 @@ $masked     = str_repeat('*', max(0, strlen($wa_phone)-4)) . substr($wa_phone, -
 $otp_on     = FEATURE_WA_OTP  ? 'true' : 'false';
 $fallback_on= FEATURE_OTP_FALLBACK ? 'true' : 'false';
 $export_on  = FEATURE_EXPORT  ? 'true' : 'false';
-$approval_on   = FEATURE_APPROVAL? 'true' : 'false';
-$is_super_admin = !empty($_SESSION['is_super_admin']) ? 'true' : 'false';
+$approval_on= FEATURE_APPROVAL? 'true' : 'false';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -141,9 +140,6 @@ body{font-family:system-ui,sans-serif;background:#f5f5f3;color:#1a1a18;padding:1
         <?php echo htmlspecialchars($admin); ?>
       </div>
       <button class="btn" onclick="loadPending()">&#8635; Refresh</button>
-      <?php if(!empty($_SESSION['is_super_admin'])): ?>
-      <a href="admin.php" class="nav-link" style="background:#FAEEDA;border-color:#FAC775;color:#854F0B">&#9881; Admin</a>
-      <?php endif; ?>
       <a href="index.php" class="nav-link">&#8592; Contacts</a>
       <a href="logout.php" class="btn btn-logout">&#9866; Logout</a>
     </div>
@@ -171,8 +167,7 @@ body{font-family:system-ui,sans-serif;background:#f5f5f3;color:#1a1a18;padding:1
     </div>
   </div>
 
-  <?php if(!empty($_SESSION['is_super_admin'])): ?>
-  <!-- Feature flags panel — super admin only -->
+  <!-- Feature flags panel -->
   <div class="flags-panel" id="flagsPanel">
     <div class="flags-panel-header" onclick="toggleFlagsPanel()">
       <div class="flags-panel-title">
@@ -187,7 +182,6 @@ body{font-family:system-ui,sans-serif;background:#f5f5f3;color:#1a1a18;padding:1
       <div class="save-note">&#9432; Changes take effect immediately. Page reload may be needed for frontend flags (Google Places, Copy Address, Validation).</div>
     </div>
   </div>
-  <?php endif; ?>
 
   <div id="pendingList"><div class="loading">Loading...</div></div>
 </div>
@@ -196,8 +190,7 @@ body{font-family:system-ui,sans-serif;background:#f5f5f3;color:#1a1a18;padding:1
 
 <script>
 // ── Feature flags (from PHP config.php) ─────────────────────
-var FF_WA_OTP      = <?php echo $otp_on; ?>;
-var IS_SUPER_ADMIN = <?php echo $is_super_admin; ?>;
+var FF_WA_OTP   = <?php echo $otp_on; ?>;
 var FF_EXPORT   = <?php echo $export_on; ?>;
 var FF_APPROVAL = <?php echo $approval_on; ?>;
 
@@ -254,22 +247,17 @@ function ajaxJSON(method,url,data,cb){
   if(data) x.setRequestHeader('Content-Type','application/json');
   x.onreadystatechange=function(){
     if(x.readyState!==4) return;
-    if(x.status===401){ window.location.href='login.php'; return; }
     if(x.status===403){
       try{
         var r=JSON.parse(x.responseText);
         if(r.otp_required){ showOTPPrompt(); return; }
       }catch(e){}
     }
-    // Try to parse JSON — show raw response if it fails
-    var raw=x.responseText;
-    // Strip any PHP warnings/notices before the JSON
-    var jsonStart=raw.indexOf('{');
-    if(jsonStart>0) raw=raw.substring(jsonStart);
-    try{ cb(null,JSON.parse(raw)); }
-    catch(e){ cb('Server error: '+x.responseText.substring(0,300)); }
+    if(x.status===401||x.responseText.indexOf('login.php')>=0){ window.location.href='login.php'; return; }
+    try{ cb(null,JSON.parse(x.responseText)); }
+    catch(e){ cb('Error: '+x.responseText.substring(0,200)); }
   };
-  x.onerror=function(){cb('Network error - check server');};
+  x.onerror=function(){cb('Network error');};
   x.send(data?JSON.stringify(data):null);
 }
 
@@ -414,33 +402,17 @@ if(!FF_WA_OTP){
 
 // ── Load pending ──────────────────────────────────────────────────────────────
 function loadPending(){
-  var pl=document.getElementById('pendingList');
-  pl.innerHTML='<div class="loading">Loading...</div>';
+  document.getElementById('pendingList').innerHTML='<div class="loading">Loading...</div>';
   ajaxJSON('GET',API+'?action=pending_list',null,function(err,res){
-    if(err){
-      pl.innerHTML='<div class="empty" style="color:#A32D2D">'+
-        '&#9888; Error loading approvals<br>'+
-        '<small style="font-size:11px;color:#888;word-break:break-all">'+esc(err)+'</small><br><br>'+
-        '<button class="btn btn-sm" onclick="loadPending()">Retry</button>'+
-      '</div>';
-      return;
-    }
-    if(!res.success){
-      pl.innerHTML='<div class="empty" style="color:#A32D2D">'+
-        '&#9888; '+esc(res.message||'Unknown error')+'<br><br>'+
-        '<button class="btn btn-sm" onclick="loadPending()">Retry</button>'+
-      '</div>';
-      return;
-    }
-    if(!res.data||!res.data.length){
-      pl.innerHTML='<div class="empty">&#10003; No pending approvals<br><span style="font-size:13px;color:#aaa">All caught up!</span></div>';
-      document.getElementById('totalBadge').textContent='0';
-      return;
+    if(err){ document.getElementById('pendingList').innerHTML='<div class="empty">'+esc(err)+'</div>'; return; }
+    if(!res.success||!res.data||!res.data.length){
+      document.getElementById('pendingList').innerHTML='<div class="empty">&#10003; No pending approvals<br><span style="font-size:13px;color:#aaa">All caught up!</span></div>';
+      document.getElementById('totalBadge').textContent='0'; return;
     }
     document.getElementById('totalBadge').textContent=res.data.length;
     var html='';
     for(var i=0;i<res.data.length;i++) html+=renderItem(res.data[i]);
-    pl.innerHTML=html;
+    document.getElementById('pendingList').innerHTML=html;
     if(!otpVerified){
       var items=document.querySelectorAll('.pending-item');
       for(var i=0;i<items.length;i++) items[i].classList.add('locked');
@@ -568,12 +540,11 @@ function updateCount(){
 
 loadPending();
 
-// ── Feature Flags Panel (super admin only) ───────────────────
+// ── Feature Flags Panel ───────────────────────────────────────
 var FLAGS_API = 'flags.php';
 var flagsLoaded = false;
 
 function toggleFlagsPanel(){
-  if(!IS_SUPER_ADMIN) return;
   var body = document.getElementById('flagsPanelBody');
   var chev = document.getElementById('flagsChevron');
   var isOpen = body.classList.contains('open');
@@ -583,27 +554,26 @@ function toggleFlagsPanel(){
 }
 
 function loadFlags(){
-  if(!IS_SUPER_ADMIN) return;
-  var fc = document.getElementById('flagsContent');
-  fc.innerHTML = '<div class="loading" style="padding:1.5rem">Loading...</div>';
-  var xfl = new XMLHttpRequest();
-  xfl.open('POST', FLAGS_API, true);
-  xfl.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
-  xfl.onreadystatechange = function(){
-    if(xfl.readyState !== 4) return;
+  var content = document.getElementById('flagsContent');
+  content.innerHTML = '<div class="loading" style="padding:1.5rem">Loading...</div>';
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', FLAGS_API, true);
+  xhr.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
+  xhr.onreadystatechange = function(){
+    if(xhr.readyState !== 4) return;
     try{
-      var res = JSON.parse(xfl.responseText);
+      var res = JSON.parse(xhr.responseText);
       if(res.success){ flagsLoaded=true; renderFlags(res.flags); }
-      else fc.innerHTML = '<div style="color:#A32D2D;padding:1rem">'+esc(res.message)+'</div>';
+      else content.innerHTML = '<div style="color:#A32D2D;padding:1rem">'+esc(res.message)+'</div>';
     } catch(e){
-      fc.innerHTML = '<div style="color:#A32D2D;padding:1rem">Parse error: '+e.message+'</div>';
+      content.innerHTML = '<div style="color:#A32D2D;padding:1rem">Parse error</div>';
     }
   };
-  xfl.onerror = function(){ fc.innerHTML = '<div style="color:#A32D2D;padding:1rem">Network error</div>'; };
-  xfl.send('action=list');
+  xhr.send('action=list');
 }
 
 function renderFlags(flags){
+  // Group flags
   var groups = {};
   for(var i=0; i<flags.length; i++){
     var f = flags[i];
@@ -626,8 +596,6 @@ function renderFlags(flags){
       var chk = f.value ? ' checked' : '';
       var isValidation = f.key.indexOf('VALIDATE_') === 0;
       var descLabel = isValidation ? (f.value ? 'Required' : 'Optional') : f.desc;
-      // Use data-key attribute + addEventListener instead of inline onchange
-      // to avoid any quote escaping issues
       html += '<div class="flag-row" id="flagrow_'+f.key+'">'+
         '<div class="flag-row-left">'+
           '<div class="flag-label">'+esc(f.label)+'</div>'+
@@ -636,7 +604,7 @@ function renderFlags(flags){
         '</div>'+
         '<div class="toggle-wrap">'+
           '<label class="toggle">'+
-            '<input type="checkbox" id="flagtog_'+f.key+'" data-flagkey="'+f.key+'"'+chk+'>'+
+            '<input type="checkbox" id="flagtog_'+f.key+'"'+chk+' onchange="toggleFlag(''+f.key+'',this)">'+
             '<span class="toggle-slider"></span>'+
           '</label>'+
         '</div>'+
@@ -645,18 +613,9 @@ function renderFlags(flags){
     html += '</div></div>';
   }
   document.getElementById('flagsContent').innerHTML = html;
-
-  // Attach event listeners AFTER html is set — no inline onchange needed
-  var checkboxes = document.querySelectorAll('[data-flagkey]');
-  for(var ci=0; ci<checkboxes.length; ci++){
-    (function(cb){
-      cb.addEventListener('change', function(){ toggleFlag(cb.getAttribute('data-flagkey'), cb); });
-    })(checkboxes[ci]);
-  }
 }
 
 function toggleFlag(key, checkbox){
-  if(!IS_SUPER_ADMIN){ showToast('Access denied','error'); checkbox.checked=!checkbox.checked; return; }
   var newVal = checkbox.checked;
   var saving = document.getElementById('flagsaving_'+key);
   var desc   = document.getElementById('flagdesc_'+key);
@@ -664,15 +623,15 @@ function toggleFlag(key, checkbox){
   checkbox.disabled = true;
   if(saving) { saving.textContent='Saving...'; saving.classList.add('show'); }
 
-  var xtf = new XMLHttpRequest();
-  xtf.open('POST', FLAGS_API, true);
-  xtf.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
-  xtf.onreadystatechange = function(){
-    if(xtf.readyState !== 4) return;
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', FLAGS_API, true);
+  xhr.setRequestHeader('Content-Type','application/x-www-form-urlencoded');
+  xhr.onreadystatechange = function(){
+    if(xhr.readyState !== 4) return;
     checkbox.disabled = false;
     if(saving) saving.classList.remove('show');
     try{
-      var res = JSON.parse(xtf.responseText);
+      var res = JSON.parse(xhr.responseText);
       if(res.success){
         showToast(res.message, 'success');
         // Update desc label
@@ -697,7 +656,7 @@ function toggleFlag(key, checkbox){
       checkbox.checked = !newVal;
     }
   };
-  xtf.send('action=toggle&key='+encodeURIComponent(key)+'&value='+(newVal?'true':'false'));
+  xhr.send('action=toggle&key='+encodeURIComponent(key)+'&value='+(newVal?'true':'false'));
 }
 </script>
 </body>

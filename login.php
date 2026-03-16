@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/config.php';
-session_start();
+require_once __DIR__ . '/auth.php';
 
 $error = '';
 
@@ -8,9 +8,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $user = isset($_POST['username']) ? trim($_POST['username']) : '';
     $pass = isset($_POST['password']) ? $_POST['password'] : '';
 
-    if ($user === ADMIN_USER && $pass === ADMIN_PASS) {
+    $approver = checkApproverLogin($user, $pass);
+    if ($approver) {
         $_SESSION['admin_logged_in'] = true;
-        $_SESSION['admin_user']      = $user;
+        $_SESSION['admin_user']      = $approver['username'];
+        $_SESSION['approver_name']   = $approver['name'];
+        $_SESSION['approver_id']     = $approver['id'];
+        $_SESSION['is_super_admin']  = !empty($approver['is_admin']);
         $_SESSION['login_time']      = time();
         header('Location: approval.php');
         exit;

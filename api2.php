@@ -1,13 +1,7 @@
 <?php
 // api.php — Contacts CRUD + Approval
-
-// Include config + auth FIRST so session_start() runs before any output
-require_once 'config.php';
-require_once 'auth.php';
-
-// Now safe to send headers
-ini_set('display_errors', 0);  // OFF — errors must not corrupt JSON output
-error_reporting(0);
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
 
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
@@ -15,6 +9,9 @@ header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
+
+require_once 'config.php';
+require_once 'auth.php';
 
 $action = isset($_GET['action']) ? $_GET['action'] : '';
 switch ($action) {
@@ -26,7 +23,6 @@ switch ($action) {
     case 'approve':      handleApprove();     break;
     case 'reject':       handleReject();      break;
     case 'export':       handleExport();      break;
-    case 'audit_log':    handleAuditLog();    break;
     default:
         echo json_encode(['success'=>false,'message'=>'Invalid action: '.$action]);
 }
@@ -221,59 +217,37 @@ function handleDelete() {
 
 // ── PENDING LIST ──────────────────────────────────────────────────────────────
 function handlePendingList() {
-    try {
-        $db = getDB();
+    $db = getDB();
 
-        // Use safe column list — audit columns added later via approvers_schema.sql
-        $cols = "p.id, p.contact_id, p.change_type, p.change_data,
-                 p.requested_at, p.reviewed_at, p.review_note, c.approval_status";
+    // Get pending change requests
+    $stmt = $db->prepare(
+        "SELECT p.*, c.approval_status
+         FROM contacts_pending p
+         LEFT JOIN contacts c ON c.id = p.contact_id
+         WHERE c.approval_status = 'pending'
+         ORDER BY p.requested_at DESC"
+    );
+    if (!$stmt) { echo json_encode(['success'=>false,'message'=>$db->error]); return; }
+    $stmt->execute();
+    $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
 
-        // Check if new audit columns exist, add them if so
-        $colCheck = $db->query("SHOW COLUMNS FROM contacts_pending LIKE 'reviewed_by'");
-        if ($colCheck && $colCheck->num_rows > 0) {
-            $cols .= ", p.reviewed_by, p.reviewer_name, p.review_action";
-        }
+    // For each pending item, fetch current contact data (old values)
+    foreach ($rows as &$row) {
+        $row['change_data'] = json_decode($row['change_data'], true);
 
-        $stmt = $db->prepare(
-            "SELECT $cols
-             FROM contacts_pending p
-             LEFT JOIN contacts c ON c.id = p.contact_id
-             WHERE c.approval_status = 'pending' AND p.reviewed_at IS NULL
-             ORDER BY p.requested_at DESC"
-        );
-        if (!$stmt) {
-            $err = $db->error;
-            if (strpos($err, "contacts_pending") !== false) {
-                echo json_encode(['success'=>true,'data'=>[],'message'=>'contacts_pending table not found - run schema.sql']);
-            } else {
-                echo json_encode(['success'=>false,'message'=>'Prepare failed: '.$err]);
-            }
-            return;
-        }
-        $stmt->execute();
-        $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-        $stmt->close();
-
-        foreach ($rows as &$row) {
-            $row['change_data'] = json_decode($row['change_data'], true);
-            $cid = (int)$row['contact_id'];
-            $cs  = $db->prepare("SELECT * FROM contacts WHERE id = ?");
-            if ($cs) {
-                $cs->bind_param('i', $cid);
-                $cs->execute();
-                $row['current_data'] = $cs->get_result()->fetch_assoc() ?: [];
-                $cs->close();
-            } else {
-                $row['current_data'] = [];
-            }
-        }
-
-        $db->close();
-        echo json_encode(['success'=>true,'data'=>$rows]);
-
-    } catch (Throwable $e) {
-        echo json_encode(['success'=>false,'message'=>'pending_list error: '.$e->getMessage()]);
+        // Fetch current (old) contact data for comparison
+        $cid = (int)$row['contact_id'];
+        $cs = $db->prepare("SELECT * FROM contacts WHERE id = ?");
+        $cs->bind_param('i', $cid);
+        $cs->execute();
+        $current = $cs->get_result()->fetch_assoc();
+        $cs->close();
+        $row['current_data'] = $current ?: [];
     }
+
+    $db->close();
+    echo json_encode(['success'=>true,'data'=>$rows]);
 }
 
 // ── APPROVE ───────────────────────────────────────────────────────────────────
@@ -306,42 +280,11 @@ function handleApprove() {
         $stmt->bind_param('i',$cid); $stmt->execute(); $stmt->close();
     }
 
-    // Record who approved and when
-    $now          = date('Y-m-d H:i:s');
-    $reviewer     = isset($_SESSION['admin_user']) ? $_SESSION['admin_user'] : 'admin';
-    $reviewer_name= isset($_SESSION['approver_name']) ? $_SESSION['approver_name'] : $reviewer;
-
-    // Check if audit columns exist before using them
-    $hasAudit = false;
-    $ac = $db->query("SHOW COLUMNS FROM contacts_pending LIKE 'reviewed_by'");
-    if ($ac && $ac->num_rows > 0) $hasAudit = true;
-
-    if ($hasAudit) {
-        $stmt = $db->prepare(
-            "UPDATE contacts_pending
-             SET reviewed_at=?, review_note=?, reviewed_by=?, reviewer_name=?, review_action='approved'
-             WHERE id=?"
-        );
-        $stmt->bind_param('ssssi',$now,$note,$reviewer,$reviewer_name,$pid);
-    } else {
-        $stmt = $db->prepare("UPDATE contacts_pending SET reviewed_at=?, review_note=? WHERE id=?");
-        $stmt->bind_param('ssi',$now,$note,$pid);
-    }
-    $stmt->execute(); $stmt->close();
-
-    // Save audit info on the contact itself (if not deleted)
-    if ($type !== 'delete') {
-        $cc = $db->query("SHOW COLUMNS FROM contacts LIKE 'approved_by'");
-        if ($cc && $cc->num_rows > 0) {
-            $stmt = $db->prepare("UPDATE contacts SET approved_by=?, approved_by_name=?, approved_at=? WHERE id=?");
-            $stmt->bind_param('sssi',$reviewer,$reviewer_name,$now,$cid);
-            $stmt->execute(); $stmt->close();
-        }
-    }
-
-    // Keep reviewed record for history — only delete unreviewed pending records
-    $stmt = $db->prepare("DELETE FROM contacts_pending WHERE contact_id=? AND id!=? AND reviewed_at IS NULL");
-    $stmt->bind_param('ii',$cid,$pid); $stmt->execute(); $stmt->close();
+    $now = date('Y-m-d H:i:s');
+    $stmt = $db->prepare("UPDATE contacts_pending SET reviewed_at=?,review_note=? WHERE id=?");
+    $stmt->bind_param('ssi',$now,$note,$pid); $stmt->execute(); $stmt->close();
+    $stmt = $db->prepare("DELETE FROM contacts_pending WHERE contact_id=?");
+    $stmt->bind_param('i',$cid); $stmt->execute(); $stmt->close();
     $db->close();
     echo json_encode(['success'=>true,'message'=>'Approved']);
 }
@@ -370,31 +313,8 @@ function handleReject() {
         $stmt = $db->prepare("UPDATE contacts SET approval_status='approved' WHERE id=?");
         $stmt->bind_param('i',$cid); $stmt->execute(); $stmt->close();
     }
-    // Record who rejected and when
-    $now          = date('Y-m-d H:i:s');
-    $reviewer     = isset($_SESSION['admin_user']) ? $_SESSION['admin_user'] : 'admin';
-    $reviewer_name= isset($_SESSION['approver_name']) ? $_SESSION['approver_name'] : $reviewer;
-
-    $hasAuditR = false;
-    $ar = $db->query("SHOW COLUMNS FROM contacts_pending LIKE 'reviewed_by'");
-    if ($ar && $ar->num_rows > 0) $hasAuditR = true;
-
-    if ($hasAuditR) {
-        $stmt = $db->prepare(
-            "UPDATE contacts_pending
-             SET reviewed_at=?, review_note=?, reviewed_by=?, reviewer_name=?, review_action='rejected'
-             WHERE id=?"
-        );
-        $stmt->bind_param('ssssi',$now,$note,$reviewer,$reviewer_name,$pid);
-    } else {
-        $stmt = $db->prepare("UPDATE contacts_pending SET reviewed_at=?, review_note=? WHERE id=?");
-        $stmt->bind_param('ssi',$now,$note,$pid);
-    }
-    $stmt->execute(); $stmt->close();
-
-    // Keep reviewed record for history — only delete unreviewed pending records
-    $stmt = $db->prepare("DELETE FROM contacts_pending WHERE contact_id=? AND id!=? AND reviewed_at IS NULL");
-    $stmt->bind_param('ii',$cid,$pid); $stmt->execute(); $stmt->close();
+    $stmt = $db->prepare("DELETE FROM contacts_pending WHERE contact_id=?");
+    $stmt->bind_param('i',$cid); $stmt->execute(); $stmt->close();
     $db->close();
     echo json_encode(['success'=>true,'message'=>'Rejected']);
 }
@@ -416,42 +336,6 @@ function handleExport() {
     $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $stmt->close(); $db->close();
     echo json_encode(['success'=>true,'data'=>$rows]);
-}
-
-// ── AUDIT LOG (recent approvals/rejections with approver info) ───────────────
-function handleAuditLog() {
-    $db    = getDB();
-    $page  = max(1, (int)(isset($_GET['page']) ? $_GET['page'] : 1));
-    $limit = 20;
-    $offset= ($page-1)*$limit;
-
-    $stmt = $db->prepare(
-        "SELECT p.id, p.contact_id, p.change_type, p.requested_at,
-                p.reviewed_at, p.reviewed_by, p.reviewer_name,
-                p.review_note, p.review_action,
-                c.first_name, c.last_name, c.mo_no, c.city
-         FROM contacts_pending p
-         LEFT JOIN contacts c ON c.id = p.contact_id
-         WHERE p.reviewed_at IS NOT NULL
-         ORDER BY p.reviewed_at DESC LIMIT ? OFFSET ?"
-    );
-    if (!$stmt) { echo json_encode(['success'=>false,'message'=>$db->error]); return; }
-    $stmt->bind_param('ii',$limit,$offset);
-    $stmt->execute();
-    $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-    $stmt->close();
-
-    $count = $db->query("SELECT COUNT(*) as t FROM contacts_pending WHERE reviewed_at IS NOT NULL");
-    $total = $count ? (int)$count->fetch_assoc()['t'] : 0;
-    $db->close();
-
-    echo json_encode([
-        'success' => true,
-        'data'    => $rows,
-        'total'   => $total,
-        'pages'   => (int)ceil($total/$limit),
-        'page'    => $page,
-    ]);
 }
 
 // ── INTERNAL: log pending change ──────────────────────────────────────────────

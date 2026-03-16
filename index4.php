@@ -29,9 +29,7 @@ $vflags = json_encode([
   'Vatan_country'    => VALIDATE_VATAN_COUNTRY,
 ]);
 
-$gplaces_on  = FEATURE_GOOGLE_PLACES ? 'true' : 'false';
-$copyaddr_on = FEATURE_COPY_ADDR      ? 'true' : 'false';
-$gpsfill_on  = FEATURE_GPS_FILL       ? 'true' : 'false';
+$gplaces_on = FEATURE_GOOGLE_PLACES ? 'true' : 'false';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -168,31 +166,11 @@ tr.selected td{background:#EAF3DE}
 .toast-info{background:#E6F1FB;color:#185FA5;border:1px solid #B5D4F4}
 .loading{text-align:center;padding:2.5rem;color:#888;font-size:13px}
 .note{font-size:12px;color:#854F0B;background:#FAEEDA;padding:8px 12px;border-radius:8px;margin-bottom:1rem;line-height:1.5}
-.copy-addr-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:#E6F1FB;color:#185FA5;border:1px solid #B5D4F4;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;-webkit-appearance:none;margin-bottom:4px;transition:background .15s}
-.gps-btn{width:100%;padding:10px 14px;background:#0F766E;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .15s;-webkit-appearance:none;margin-bottom:8px}
-.gps-btn:hover:not(:disabled){background:#0D6560}
-.gps-btn:active:not(:disabled){opacity:.9}
-.gps-btn:disabled{background:#aaa;cursor:not-allowed}
-.gps-btn.gps-ok{background:#15803D}
-.gps-spinner{width:14px;height:14px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:gpsspin .7s linear infinite;flex-shrink:0}
-@keyframes gpsspin{to{transform:rotate(360deg)}}
-.gps-coord-strip{display:none;align-items:center;gap:6px;background:#f5f5f3;border-radius:7px;padding:7px 10px;margin-bottom:10px;font-size:11px;color:#888;grid-column:1/-1}
-.gps-coord-strip.show{display:flex}
-.gps-coord-val{font-family:monospace;font-size:11px;color:#1a1a18;font-weight:600}
-.gps-error{display:none;align-items:center;gap:7px;background:#FCEBEB;border:1px solid #F7C1C1;border-radius:7px;padding:8px 10px;margin-bottom:8px;font-size:12px;color:#A32D2D;grid-column:1/-1}
-.gps-error.show{display:flex}
-.fi.gps-filled{background:#F0FDFC;border-color:#5EEAD4!important}
-.copy-addr-btn:hover{background:#B5D4F4}
-.copy-addr-btn svg{width:13px;height:13px;flex-shrink:0}
-.copy-addr-done{color:#0F6E56;font-size:12px;font-weight:600;display:none;align-items:center;gap:4px;padding:7px 0}
-.copy-addr-done.show{display:inline-flex}
 </style>
 <!-- Google Places API — controlled by FEATURE_GOOGLE_PLACES in config.php -->
 <script>
 var GOOGLE_API_KEY = '<?php echo defined("GOOGLE_API_KEY") ? GOOGLE_API_KEY : "YOUR_GOOGLE_API_KEY"; ?>';
 var FF_GOOGLE_PLACES = <?php echo $gplaces_on; ?>;
-var FF_COPY_ADDR    = <?php echo $copyaddr_on; ?>;
-var FF_GPS_FILL     = <?php echo $gpsfill_on; ?>;
 </script>
 </head>
 <body>
@@ -285,6 +263,19 @@ var API = 'api.php';
 
 // ── Validation flags injected from PHP config.php ─────────────
 var VALIDATION_FLAGS = <?php echo $vflags; ?>;
+
+// Apply flags to FIELDS array — override required based on flag
+(function(){
+  for(var i=0; i<FIELDS.length; i++){
+    var f = FIELDS[i];
+    if(!f.id) continue;
+    if(typeof VALIDATION_FLAGS[f.id] !== 'undefined'){
+      f.required = VALIDATION_FLAGS[f.id];
+      // If now optional, update label to remove * indicator
+      // (star is added dynamically in buildForm based on f.required)
+    }
+  }
+})();
 var editId = null;
 var deleteId = null;
 var currentPage = 1;
@@ -321,17 +312,6 @@ var FIELDS = [
   {id:'Vatan_zip',            label:'Zip',            ph:'Zip',                       required:true,  pattern:'zip', isInt:true, errMsg:'Enter valid 6-digit zip code'},
   {id:'Vatan_country',        label:'Country',        ph:'Country',                   required:true,  minLen:2, maxLen:100, errMsg:'Vatan country is required'}
 ];
-
-// Apply PHP validation flags to FIELDS — runs after FIELDS is declared
-(function(){
-  for(var i=0; i<FIELDS.length; i++){
-    var f=FIELDS[i];
-    if(!f.id) continue;
-    if(typeof VALIDATION_FLAGS[f.id] !== 'undefined'){
-      f.required = VALIDATION_FLAGS[f.id];
-    }
-  }
-})();
 
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function fmtDOB(v){ if(!v||v==='0000-00-00') return '—'; var p=v.substring(0,10).split('-'); return p.length===3?p[2]+'-'+p[1]+'-'+p[0]:v; }
@@ -524,39 +504,7 @@ function buildForm(values){
   var firstSec=true;
   for(var i=0;i<FIELDS.length;i++){
     var f=FIELDS[i];
-    if(f.sec!==undefined){
-      // Inject copy button before Vatan address section
-      if(f.sec==='Current address' && FF_GPS_FILL){
-        // GPS auto-populate button for current address
-        html+='<div style="grid-column:1/-1;margin-bottom:4px">'+
-          '<button type="button" class="gps-btn" id="gpsFillBtn" onclick="gpsAutoFill()">'+
-            '<svg width="15" height="15" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="3" fill="white"/><path d="M9 1v2.5M9 14.5V17M1 9h2.5M14.5 9H17" stroke="white" stroke-width="1.6" stroke-linecap="round"/><circle cx="9" cy="9" r="7" stroke="white" stroke-width="1.2" stroke-dasharray="2.5 2"/></svg>'+
-            'Use my current location'+
-          '</button>'+
-          '<div class="gps-error" id="gpsError"><svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.75 3.5h1.5v5h-1.5v-5zm0 6h1.5v1.5h-1.5V10.5z"/></svg><span id="gpsErrorTxt"></span></div>'+
-          '<div class="gps-coord-strip" id="gpsCoordStrip">'+
-            '<svg width="12" height="12" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="3" fill="#0F766E"/><circle cx="9" cy="9" r="7" stroke="#0F766E" stroke-width="1.2" stroke-dasharray="2.5 2"/></svg>'+
-            '<span id="gpsLat" class="gps-coord-val">—</span>'+
-            '<span style="color:#ddd">|</span>'+
-            '<span id="gpsLng" class="gps-coord-val">—</span>'+
-            '<span style="margin-left:4px">Accuracy: <span id="gpsAcc" class="gps-coord-val">—</span></span>'+
-          '</div>'+
-        '</div>';
-      }
-      if(f.sec==='Vatan address' && FF_COPY_ADDR){
-        html+='<div style="grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:4px 0">'+
-          '<button type="button" class="copy-addr-btn" onclick="copyToVatan()">'+
-            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>'+
-            'Copy Current address to Vatan address'+
-          '</button>'+
-          '<span class="copy-addr-done" id="copyDoneMsg">'+
-            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>'+
-            'Copied!'+
-          '</span>'+
-        '</div>';
-      }
-      html+='<div class="sec">'+f.sec+'</div>';firstSec=false;continue;
-    }
+    if(f.sec!==undefined){html+='<div class="sec">'+f.sec+'</div>';firstSec=false;continue;}
     if(firstSec){html+='<div class="sec first">Basic info</div>';firstSec=false;}
     var val=values[f.id]!==undefined?esc(String(values[f.id]||'')):'';
     if(f.id==='dob') val=esc(dobToDisplay(values.dob||''));
@@ -617,43 +565,6 @@ function openEdit(id){
 }
 
 function closeModal(){document.getElementById('formModal').classList.remove('open');}
-
-function copyToVatan(){
-  var MAP = {
-    'block_no'       : 'Vatan_block_no',
-    'address_line1'  : 'Vatan_address_line1',
-    'street_address' : 'Vatan_Street_address',
-    'city'           : 'Vatan_city',
-    'state'          : 'Vatan_state',
-    'zip'            : 'Vatan_zip',
-    'country'        : 'Vatan_country'
-  };
-  var copied = 0;
-  for(var src in MAP){
-    var srcEl = document.getElementById('fi_'+src);
-    var dstEl = document.getElementById('fi_'+MAP[src]);
-    if(srcEl && dstEl){
-      dstEl.value = srcEl.value;
-      // Clear any existing error on dest field
-      clearFieldError(MAP[src]);
-      copied++;
-    }
-  }
-  // Also copy village from Home_Town if Vatan_vilage is empty
-  var htEl  = document.getElementById('fi_Home_Town');
-  var vilEl = document.getElementById('fi_Vatan_vilage');
-  if(htEl && vilEl && !vilEl.value && htEl.value){
-    vilEl.value = htEl.value;
-    clearFieldError('Vatan_vilage');
-  }
-  // Show success tick
-  var msg = document.getElementById('copyDoneMsg');
-  if(msg){
-    msg.classList.add('show');
-    setTimeout(function(){ msg.classList.remove('show'); }, 2500);
-  }
-  if(copied > 0) showToast('Current address copied to Vatan address', 'success');
-}
 
 // ── Validation helpers ───────────────────────────────────────────────────────
 function showFieldError(id, msg){
@@ -803,159 +714,6 @@ function exportSelected(){
 }
 
 loadContacts();
-
-// ── GPS Auto-fill (Nominatim / OpenStreetMap — free, no API key) ─────────────
-function gpsAutoFill(){
-  if(!FF_GPS_FILL) return;
-  var btn = document.getElementById('gpsFillBtn');
-  if(!btn) return;
-  if(!navigator.geolocation){
-    gpsShowError('Geolocation is not supported by your browser.');
-    return;
-  }
-  gpsSetLoading(true);
-  gpsHideError();
-  navigator.geolocation.getCurrentPosition(
-    gpsOnSuccess,
-    gpsOnError,
-    {enableHighAccuracy:true, timeout:12000, maximumAge:0}
-  );
-}
-
-function gpsOnSuccess(pos){
-  var lat = pos.coords.latitude;
-  var lng = pos.coords.longitude;
-  var acc = Math.round(pos.coords.accuracy);
-
-  var latEl = document.getElementById('gpsLat');
-  var lngEl = document.getElementById('gpsLng');
-  var accEl = document.getElementById('gpsAcc');
-  var strip = document.getElementById('gpsCoordStrip');
-  if(latEl) latEl.textContent = lat.toFixed(5);
-  if(lngEl) lngEl.textContent = lng.toFixed(5);
-  if(accEl) accEl.textContent = acc+'m';
-  if(strip) strip.classList.add('show');
-
-  // Reverse geocode via Nominatim (OpenStreetMap — free, no API key needed)
-  var url = 'https://nominatim.openstreetmap.org/reverse?lat='+lat+'&lon='+lng+'&format=json&addressdetails=1&accept-language=en';
-  var xhr = new XMLHttpRequest();
-  xhr.open('GET', url, true);
-  xhr.setRequestHeader('User-Agent','ContactBook-AddressPicker');
-  xhr.onreadystatechange = function(){
-    if(xhr.readyState !== 4) return;
-    gpsSetLoading(false);
-    if(xhr.status === 200){
-      try{
-        var data = JSON.parse(xhr.responseText);
-        if(data && data.address){
-          gpsFillFields(data.address);
-          gpsSetSuccess();
-        } else {
-          gpsShowError('Location found but address could not be resolved. Please fill manually.');
-          gpsSetSuccess();
-        }
-      } catch(e){
-        gpsShowError('Could not parse address response. Please fill manually.');
-      }
-    } else {
-      gpsShowError('Reverse geocode failed (status '+xhr.status+'). Please fill manually.');
-    }
-  };
-  xhr.onerror = function(){
-    gpsSetLoading(false);
-    gpsShowError('Network error during reverse geocode. Please fill manually.');
-  };
-  xhr.send();
-}
-
-function gpsOnError(err){
-  gpsSetLoading(false);
-  var msgs = {
-    1:'Location access denied. Please allow location permission and try again.',
-    2:'Location unavailable. Make sure GPS is enabled on your device.',
-    3:'Location request timed out. Please try again.'
-  };
-  gpsShowError(msgs[err.code] || 'Could not get your location.');
-}
-
-function gpsFillFields(a){
-  // Build street from house number + road + suburb/neighbourhood
-  var streetParts = [];
-  if(a.house_number)  streetParts.push(a.house_number);
-  if(a.road)          streetParts.push(a.road);
-  if(a.suburb)        streetParts.push(a.suburb);
-  if(a.neighbourhood) streetParts.push(a.neighbourhood);
-  var street = streetParts.join(', ');
-
-  // Address line 1 = building/area detail
-  var addr1Parts = [];
-  if(a.amenity)      addr1Parts.push(a.amenity);
-  if(a.building)     addr1Parts.push(a.building);
-  if(a.quarter)      addr1Parts.push(a.quarter);
-  var addr1 = addr1Parts.join(', ') || (a.suburb || a.neighbourhood || '');
-
-  var city    = a.city    || a.town    || a.village || a.county || '';
-  var state   = a.state   || '';
-  var zip     = a.postcode|| '';
-  var country = a.country || '';
-
-  gpsSetField('fi_street_address',  street);
-  gpsSetField('fi_address_line1',   addr1);
-  gpsSetField('fi_city',            city);
-  gpsSetField('fi_state',           state);
-  gpsSetField('fi_zip',             zip);
-  gpsSetField('fi_country',         country);
-
-  // Clear any validation errors on filled fields
-  var filled = ['street_address','address_line1','city','state','zip','country'];
-  for(var i=0;i<filled.length;i++){
-    if(document.getElementById('fi_'+filled[i]) && document.getElementById('fi_'+filled[i]).value)
-      clearFieldError(filled[i]);
-  }
-}
-
-function gpsSetField(id, value){
-  var el = document.getElementById(id);
-  if(!el) return;
-  el.value = value || '';
-  if(value) el.classList.add('gps-filled');
-  else el.classList.remove('gps-filled');
-  // Clear error if now has value
-  if(value && el.classList.contains('error')) el.classList.remove('error');
-}
-
-function gpsSetLoading(on){
-  var btn = document.getElementById('gpsFillBtn');
-  if(!btn) return;
-  btn.disabled = on;
-  btn.classList.remove('gps-ok');
-  if(on){
-    btn.innerHTML = '<span class="gps-spinner"></span><span>Getting location…</span>';
-  } else {
-    btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="3" fill="white"/><path d="M9 1v2.5M9 14.5V17M1 9h2.5M14.5 9H17" stroke="white" stroke-width="1.6" stroke-linecap="round"/><circle cx="9" cy="9" r="7" stroke="white" stroke-width="1.2" stroke-dasharray="2.5 2"/></svg><span>Use my current location</span>';
-  }
-}
-
-function gpsSetSuccess(){
-  var btn = document.getElementById('gpsFillBtn');
-  if(!btn) return;
-  btn.disabled = false;
-  btn.classList.add('gps-ok');
-  btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7.5" fill="rgba(255,255,255,.2)"/><path d="M5 9.5L7.5 12L13 6.5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Location detected — tap to refresh</span>';
-  showToast('Address auto-filled from GPS!','success');
-}
-
-function gpsShowError(msg){
-  var el  = document.getElementById('gpsError');
-  var txt = document.getElementById('gpsErrorTxt');
-  if(el)  el.classList.add('show');
-  if(txt) txt.textContent = msg;
-}
-
-function gpsHideError(){
-  var el = document.getElementById('gpsError');
-  if(el) el.classList.remove('show');
-}
 
 // ── Google Places Autocomplete ─────────────────────────────────────────────
 var googleLoaded = false;

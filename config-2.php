@@ -20,13 +20,12 @@ define('OTP_RESEND_COOLDOWN', 60);    // Seconds before resend is allowed
 //  Set true to enable, false to disable
 // ============================================================
 // ── App features ────────────────────────────────────────────
-define('FEATURE_WA_OTP', false);   // WhatsApp OTP required before approve/reject
-define('FEATURE_OTP_FALLBACK', false);   // Show OTP on screen if WhatsApp delivery fails
+define('FEATURE_WA_OTP',        true);   // WhatsApp OTP required before approve/reject
+define('FEATURE_OTP_FALLBACK',  true);   // Show OTP on screen if WhatsApp delivery fails
 define('FEATURE_EXPORT',        true);   // Allow Excel export on contacts page
 define('FEATURE_APPROVAL',      true);   // Enable approval workflow (pending → approve/reject)
-define('FEATURE_GOOGLE_PLACES', false);   // Google Places address autocomplete
+define('FEATURE_GOOGLE_PLACES', true);   // Google Places address autocomplete
 define('FEATURE_COPY_ADDR',     true);   // Show "Copy to Vatan address" button in form
-define('FEATURE_GPS_FILL', true);   // Show "Use my current location" GPS auto-fill button
 
 // ============================================================
 //  FIELD VALIDATION FLAGS
