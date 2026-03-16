@@ -18,6 +18,25 @@ function requireLogin() {
     $_SESSION['login_time'] = time();
 }
 
+// ── Approver login check (from DB) ────────────────────────────
+function checkApproverLogin($username, $password) {
+    // First check super-admin from config
+    if ($username === ADMIN_USER && $password === ADMIN_PASS) {
+        return ['id'=>0,'username'=>ADMIN_USER,'name'=>'Super Admin','is_admin'=>true];
+    }
+    // Then check approvers table
+    $db   = getDB();
+    $stmt = $db->prepare("SELECT * FROM approvers WHERE username=? AND is_active=1");
+    if (!$stmt) { $db->close(); return false; }
+    $stmt->bind_param('s',$username);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close(); $db->close();
+    if (!$row) return false;
+    if (!password_verify($password, $row['password_hash'])) return false;
+    return $row;
+}
+
 // ── Require OTP (honours FEATURE_WA_OTP flag) ─────────────────
 function requireOTP() {
     if (!FEATURE_WA_OTP) return; // OTP disabled — skip check

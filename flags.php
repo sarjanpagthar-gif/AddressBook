@@ -17,6 +17,7 @@ $FLAG_META = [
   'FEATURE_APPROVAL'      => ['label'=>'Approval Workflow',     'group'=>'Features',          'desc'=>'Require approval before changes go live'],
   'FEATURE_GOOGLE_PLACES' => ['label'=>'Google Places',         'group'=>'Features',          'desc'=>'Address autocomplete from Google'],
   'FEATURE_COPY_ADDR'     => ['label'=>'Copy Address Button',   'group'=>'Features',          'desc'=>'Copy current address to Vatan address'],
+  'FEATURE_GPS_FILL'      => ['label'=>'GPS Auto-fill',         'group'=>'Features',          'desc'=>'Use current location to auto-fill current address'],
   // Validation flags
   'VALIDATE_FIRST_NAME'   => ['label'=>'First name',            'group'=>'Basic info',        'desc'=>'Required field'],
   'VALIDATE_LAST_NAME'    => ['label'=>'Last name',             'group'=>'Basic info',        'desc'=>'Required field'],

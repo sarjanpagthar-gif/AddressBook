@@ -1,38 +1,4 @@
-<?php
-require_once __DIR__ . '/config.php';
-
-// Build JS validation flags object from PHP config
-$vflags = json_encode([
-  'first_name'       => VALIDATE_FIRST_NAME,
-  'last_name'        => VALIDATE_LAST_NAME,
-  'dob'              => VALIDATE_DOB,
-  'gender'           => VALIDATE_GENDER,
-  'father_name'      => VALIDATE_FATHER_NAME,
-  'mother_name'      => VALIDATE_MOTHER_NAME,
-  'mo_no'            => VALIDATE_MOBILE,
-  'wp_no'            => VALIDATE_WHATSAPP,
-  'Home_Town'        => VALIDATE_HOME_TOWN,
-  'block_no'         => VALIDATE_BLOCK_NO,
-  'address_line1'    => VALIDATE_ADDRESS_LINE1,
-  'street_address'   => VALIDATE_STREET_ADDRESS,
-  'city'             => VALIDATE_CITY,
-  'state'            => VALIDATE_STATE,
-  'zip'              => VALIDATE_ZIP,
-  'country'          => VALIDATE_COUNTRY,
-  'Vatan_vilage'     => VALIDATE_VATAN_VILLAGE,
-  'Vatan_block_no'   => VALIDATE_VATAN_BLOCK_NO,
-  'Vatan_Street_address' => VALIDATE_VATAN_STREET,
-  'Vatan_address_line1'  => VALIDATE_VATAN_ADDR1,
-  'Vatan_city'       => VALIDATE_VATAN_CITY,
-  'Vatan_state'      => VALIDATE_VATAN_STATE,
-  'Vatan_zip'        => VALIDATE_VATAN_ZIP,
-  'Vatan_country'    => VALIDATE_VATAN_COUNTRY,
-]);
-
-$gplaces_on  = FEATURE_GOOGLE_PLACES ? 'true' : 'false';
-$copyaddr_on = FEATURE_COPY_ADDR      ? 'true' : 'false';
-$gpsfill_on  = FEATURE_GPS_FILL       ? 'true' : 'false';
-?>
+<?php // index.php ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -168,31 +134,10 @@ tr.selected td{background:#EAF3DE}
 .toast-info{background:#E6F1FB;color:#185FA5;border:1px solid #B5D4F4}
 .loading{text-align:center;padding:2.5rem;color:#888;font-size:13px}
 .note{font-size:12px;color:#854F0B;background:#FAEEDA;padding:8px 12px;border-radius:8px;margin-bottom:1rem;line-height:1.5}
-.copy-addr-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:#E6F1FB;color:#185FA5;border:1px solid #B5D4F4;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;-webkit-appearance:none;margin-bottom:4px;transition:background .15s}
-.gps-btn{width:100%;padding:10px 14px;background:#0F766E;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .15s;-webkit-appearance:none;margin-bottom:8px}
-.gps-btn:hover:not(:disabled){background:#0D6560}
-.gps-btn:active:not(:disabled){opacity:.9}
-.gps-btn:disabled{background:#aaa;cursor:not-allowed}
-.gps-btn.gps-ok{background:#15803D}
-.gps-spinner{width:14px;height:14px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:gpsspin .7s linear infinite;flex-shrink:0}
-@keyframes gpsspin{to{transform:rotate(360deg)}}
-.gps-coord-strip{display:none;align-items:center;gap:6px;background:#f5f5f3;border-radius:7px;padding:7px 10px;margin-bottom:10px;font-size:11px;color:#888;grid-column:1/-1}
-.gps-coord-strip.show{display:flex}
-.gps-coord-val{font-family:monospace;font-size:11px;color:#1a1a18;font-weight:600}
-.gps-error{display:none;align-items:center;gap:7px;background:#FCEBEB;border:1px solid #F7C1C1;border-radius:7px;padding:8px 10px;margin-bottom:8px;font-size:12px;color:#A32D2D;grid-column:1/-1}
-.gps-error.show{display:flex}
-.fi.gps-filled{background:#F0FDFC;border-color:#5EEAD4!important}
-.copy-addr-btn:hover{background:#B5D4F4}
-.copy-addr-btn svg{width:13px;height:13px;flex-shrink:0}
-.copy-addr-done{color:#0F6E56;font-size:12px;font-weight:600;display:none;align-items:center;gap:4px;padding:7px 0}
-.copy-addr-done.show{display:inline-flex}
 </style>
-<!-- Google Places API — controlled by FEATURE_GOOGLE_PLACES in config.php -->
+<!-- Google Places API — replace YOUR_API_KEY below -->
 <script>
-var GOOGLE_API_KEY = '<?php echo defined("GOOGLE_API_KEY") ? GOOGLE_API_KEY : "YOUR_GOOGLE_API_KEY"; ?>';
-var FF_GOOGLE_PLACES = <?php echo $gplaces_on; ?>;
-var FF_COPY_ADDR    = <?php echo $copyaddr_on; ?>;
-var FF_GPS_FILL     = <?php echo $gpsfill_on; ?>;
+var GOOGLE_API_KEY = 'YOUR_GOOGLE_API_KEY';
 </script>
 </head>
 <body>
@@ -220,17 +165,19 @@ var FF_GPS_FILL     = <?php echo $gpsfill_on; ?>;
         <thead>
           <tr>
             <th style="width:36px"><input type="checkbox" id="checkAll" onchange="toggleAll(this)"></th>
-            <th style="min-width:160px">Name</th>
-            <th style="min-width:120px">Phone</th>
-            <th style="min-width:100px">Home town</th>
-            <th style="min-width:220px">Current address</th>
-            <th style="min-width:220px">Vatan address</th>
-            <th style="width:80px">Status</th>
-            <th style="width:90px">Actions</th>
+            <th>Name</th>
+            <th>Gender</th>
+            <th>DOB</th>
+            <th>Father name</th>
+            <th>Mother name</th>
+            <th>Phone</th>
+            <th>Home town</th>
+            <th>Status</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody id="tableBody">
-          <tr><td colspan="8" class="loading">Loading...</td></tr>
+          <tr><td colspan="10" class="loading">Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -282,9 +229,6 @@ var FF_GPS_FILL     = <?php echo $gpsfill_on; ?>;
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 var API = 'api.php';
-
-// ── Validation flags injected from PHP config.php ─────────────
-var VALIDATION_FLAGS = <?php echo $vflags; ?>;
 var editId = null;
 var deleteId = null;
 var currentPage = 1;
@@ -321,17 +265,6 @@ var FIELDS = [
   {id:'Vatan_zip',            label:'Zip',            ph:'Zip',                       required:true,  pattern:'zip', isInt:true, errMsg:'Enter valid 6-digit zip code'},
   {id:'Vatan_country',        label:'Country',        ph:'Country',                   required:true,  minLen:2, maxLen:100, errMsg:'Vatan country is required'}
 ];
-
-// Apply PHP validation flags to FIELDS — runs after FIELDS is declared
-(function(){
-  for(var i=0; i<FIELDS.length; i++){
-    var f=FIELDS[i];
-    if(!f.id) continue;
-    if(typeof VALIDATION_FLAGS[f.id] !== 'undefined'){
-      f.required = VALIDATION_FLAGS[f.id];
-    }
-  }
-})();
 
 function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function fmtDOB(v){ if(!v||v==='0000-00-00') return '—'; var p=v.substring(0,10).split('-'); return p.length===3?p[2]+'-'+p[1]+'-'+p[0]:v; }
@@ -399,29 +332,6 @@ function phoneLinks(mo, wp){
   return '<div class="phone-links">'+html+'</div>';
 }
 
-// Build concatenated address string
-function fullAddr(c, prefix) {
-  var p = prefix || '';
-  var parts = [];
-  var blk  = p ? c[p+'block_no']       : c.block_no;
-  var adr1 = p ? c[p+'address_line1']  : c.address_line1;
-  var str  = p ? c[p+'Street_address'] : c.street_address;
-  var vill = p === 'Vatan_' ? c.Vatan_vilage : null;
-  var city = p ? c[p+'city']           : c.city;
-  var st   = p ? c[p+'state']          : c.state;
-  var zip  = p ? c[p+'zip']            : c.zip;
-  var ctry = p ? c[p+'country']        : c.country;
-  if(vill) parts.push(vill);
-  if(blk)  parts.push(blk);
-  if(adr1) parts.push(adr1);
-  if(str)  parts.push(str);
-  if(city) parts.push(city);
-  if(st)   parts.push(st);
-  if(zip && zip != 0)  parts.push(zip);
-  if(ctry) parts.push(ctry);
-  return parts.join(', ');
-}
-
 // Desktop table
 function renderTable(data){
   var tbody=document.getElementById('tableBody');
@@ -431,15 +341,13 @@ function renderTable(data){
     var c=data[i];
     var chk=selectedIds[c.id]?' checked':'';
     var sel=selectedIds[c.id]?' selected':'';
-    var curAddr=fullAddr(c,'');
-    var vatAddr=fullAddr(c,'Vatan_');
+    var gb=c.gender?'<span class="badge badge-'+c.gender+'">'+c.gender+'</span>':'—';
     html+='<tr class="'+sel+'">' +
       '<td><input type="checkbox" class="row-cb" value="'+c.id+'"'+chk+' onchange="toggleRowCb(this,'+c.id+')"></td>'+
       '<td><span class="avatar">'+initials(c)+'</span>'+esc(c.first_name)+' '+esc(c.last_name)+'</td>'+
-      '<td>'+phoneLinks(c.mo_no,c.wp_no)+'</td>'+
-      '<td>'+esc(c.Home_Town||'—')+'</td>'+
-      '<td style="white-space:normal;font-size:12px;color:#444;max-width:220px">'+esc(curAddr||'—')+'</td>'+
-      '<td style="white-space:normal;font-size:12px;color:#444;max-width:220px">'+esc(vatAddr||'—')+'</td>'+
+      '<td>'+gb+'</td><td>'+fmtDOB(c.dob)+'</td>'+
+      '<td>'+esc(c.father_name||'—')+'</td><td>'+esc(c.mother_name||'—')+'</td>'+
+      '<td>'+phoneLinks(c.mo_no,c.wp_no)+'</td><td>'+esc(c.Home_Town||'—')+'</td>'+
       '<td><span class="badge badge-'+c.statuz+'">'+c.statuz+'</span></td>'+
       '<td><div class="actions">'+
         '<button class="btn btn-sm btn-edit" onclick="openEdit('+c.id+')">Edit</button>'+
@@ -458,8 +366,7 @@ function renderCards(data){
   for(var i=0;i<data.length;i++){
     var c=data[i];
     var chk=selectedIds[c.id]?' checked':'';
-    var curAddr=fullAddr(c,'');
-    var vatAddr=fullAddr(c,'Vatan_');
+    var gb=c.gender?'<span class="badge badge-'+c.gender+'">'+c.gender+'</span>':'';
     html+='<div class="contact-card">'+
       '<input type="checkbox" class="card-checkbox row-cb" value="'+c.id+'"'+chk+' onchange="toggleRowCb(this,'+c.id+')">'+
       '<div class="contact-card-header">'+
@@ -470,8 +377,11 @@ function renderCards(data){
       '<div class="contact-card-body">'+
         (c.mo_no||c.wp_no?'<div class="contact-card-field" style="grid-column:1/-1"><span>Contact</span>'+phoneLinks(c.mo_no,c.wp_no)+'</div>':'')+
         (c.Home_Town?'<div class="contact-card-field"><span>Home town</span>'+esc(c.Home_Town)+'</div>':'')+
-        (curAddr?'<div class="contact-card-field" style="grid-column:1/-1"><span>Current address</span><span style="font-size:12px;color:#444">'+esc(curAddr)+'</span></div>':'')+
-        (vatAddr?'<div class="contact-card-field" style="grid-column:1/-1"><span>Vatan address</span><span style="font-size:12px;color:#444">'+esc(vatAddr)+'</span></div>':'')+
+        (c.dob&&c.dob!=='0000-00-00'?'<div class="contact-card-field"><span>DOB</span>'+fmtDOB(c.dob)+'</div>':'')+
+        (c.gender?'<div class="contact-card-field"><span>Gender</span>'+gb+'</div>':'')+
+        (c.father_name?'<div class="contact-card-field"><span>Father</span>'+esc(c.father_name)+'</div>':'')+
+        (c.mother_name?'<div class="contact-card-field"><span>Mother</span>'+esc(c.mother_name)+'</div>':'')+
+        (c.wp_no&&c.wp_no!==c.mo_no?'<div class="contact-card-field"><span>WhatsApp</span><a class="call-link wa" style="display:inline-flex" href="https://wa.me/'+cleanPhone(c.wp_no)+'" target="_blank" onclick="event.stopPropagation()"><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg> '+esc(c.wp_no)+'</a></div>':'')+ 
         (c.city?'<div class="contact-card-field"><span>City</span>'+esc(c.city)+'</div>':'')+
       '</div>'+
       '<div class="contact-card-actions">'+
@@ -511,52 +421,11 @@ function updateSelUI(){
 
 function buildForm(values){
   values=values||{};
-  // Count optional fields for info note
-  var optCount=0;
-  for(var i=0;i<FIELDS.length;i++){ if(FIELDS[i].id && !FIELDS[i].required) optCount++; }
-  var html='';
-  if(optCount>0){
-    html+='<div style="font-size:11px;color:#888;background:#f5f5f3;border-radius:7px;padding:6px 10px;margin-bottom:10px">'+
-      '<span style="color:#A32D2D;font-weight:700">*</span> Required &nbsp;|&nbsp; Fields without * are optional'+
-    '</div>';
-  }
-  html+='<div class="form-grid">';
+  var html='<div class="form-grid">';
   var firstSec=true;
   for(var i=0;i<FIELDS.length;i++){
     var f=FIELDS[i];
-    if(f.sec!==undefined){
-      // Inject copy button before Vatan address section
-      if(f.sec==='Current address' && FF_GPS_FILL){
-        // GPS auto-populate button for current address
-        html+='<div style="grid-column:1/-1;margin-bottom:4px">'+
-          '<button type="button" class="gps-btn" id="gpsFillBtn" onclick="gpsAutoFill()">'+
-            '<svg width="15" height="15" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="3" fill="white"/><path d="M9 1v2.5M9 14.5V17M1 9h2.5M14.5 9H17" stroke="white" stroke-width="1.6" stroke-linecap="round"/><circle cx="9" cy="9" r="7" stroke="white" stroke-width="1.2" stroke-dasharray="2.5 2"/></svg>'+
-            'Use my current location'+
-          '</button>'+
-          '<div class="gps-error" id="gpsError"><svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.75 3.5h1.5v5h-1.5v-5zm0 6h1.5v1.5h-1.5V10.5z"/></svg><span id="gpsErrorTxt"></span></div>'+
-          '<div class="gps-coord-strip" id="gpsCoordStrip">'+
-            '<svg width="12" height="12" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="3" fill="#0F766E"/><circle cx="9" cy="9" r="7" stroke="#0F766E" stroke-width="1.2" stroke-dasharray="2.5 2"/></svg>'+
-            '<span id="gpsLat" class="gps-coord-val">—</span>'+
-            '<span style="color:#ddd">|</span>'+
-            '<span id="gpsLng" class="gps-coord-val">—</span>'+
-            '<span style="margin-left:4px">Accuracy: <span id="gpsAcc" class="gps-coord-val">—</span></span>'+
-          '</div>'+
-        '</div>';
-      }
-      if(f.sec==='Vatan address' && FF_COPY_ADDR){
-        html+='<div style="grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:4px 0">'+
-          '<button type="button" class="copy-addr-btn" onclick="copyToVatan()">'+
-            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>'+
-            'Copy Current address to Vatan address'+
-          '</button>'+
-          '<span class="copy-addr-done" id="copyDoneMsg">'+
-            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>'+
-            'Copied!'+
-          '</span>'+
-        '</div>';
-      }
-      html+='<div class="sec">'+f.sec+'</div>';firstSec=false;continue;
-    }
+    if(f.sec!==undefined){html+='<div class="sec">'+f.sec+'</div>';firstSec=false;continue;}
     if(firstSec){html+='<div class="sec first">Basic info</div>';firstSec=false;}
     var val=values[f.id]!==undefined?esc(String(values[f.id]||'')):'';
     if(f.id==='dob') val=esc(dobToDisplay(values.dob||''));
@@ -617,43 +486,6 @@ function openEdit(id){
 }
 
 function closeModal(){document.getElementById('formModal').classList.remove('open');}
-
-function copyToVatan(){
-  var MAP = {
-    'block_no'       : 'Vatan_block_no',
-    'address_line1'  : 'Vatan_address_line1',
-    'street_address' : 'Vatan_Street_address',
-    'city'           : 'Vatan_city',
-    'state'          : 'Vatan_state',
-    'zip'            : 'Vatan_zip',
-    'country'        : 'Vatan_country'
-  };
-  var copied = 0;
-  for(var src in MAP){
-    var srcEl = document.getElementById('fi_'+src);
-    var dstEl = document.getElementById('fi_'+MAP[src]);
-    if(srcEl && dstEl){
-      dstEl.value = srcEl.value;
-      // Clear any existing error on dest field
-      clearFieldError(MAP[src]);
-      copied++;
-    }
-  }
-  // Also copy village from Home_Town if Vatan_vilage is empty
-  var htEl  = document.getElementById('fi_Home_Town');
-  var vilEl = document.getElementById('fi_Vatan_vilage');
-  if(htEl && vilEl && !vilEl.value && htEl.value){
-    vilEl.value = htEl.value;
-    clearFieldError('Vatan_vilage');
-  }
-  // Show success tick
-  var msg = document.getElementById('copyDoneMsg');
-  if(msg){
-    msg.classList.add('show');
-    setTimeout(function(){ msg.classList.remove('show'); }, 2500);
-  }
-  if(copied > 0) showToast('Current address copied to Vatan address', 'success');
-}
 
 // ── Validation helpers ───────────────────────────────────────────────────────
 function showFieldError(id, msg){
@@ -804,164 +636,10 @@ function exportSelected(){
 
 loadContacts();
 
-// ── GPS Auto-fill (Nominatim / OpenStreetMap — free, no API key) ─────────────
-function gpsAutoFill(){
-  if(!FF_GPS_FILL) return;
-  var btn = document.getElementById('gpsFillBtn');
-  if(!btn) return;
-  if(!navigator.geolocation){
-    gpsShowError('Geolocation is not supported by your browser.');
-    return;
-  }
-  gpsSetLoading(true);
-  gpsHideError();
-  navigator.geolocation.getCurrentPosition(
-    gpsOnSuccess,
-    gpsOnError,
-    {enableHighAccuracy:true, timeout:12000, maximumAge:0}
-  );
-}
-
-function gpsOnSuccess(pos){
-  var lat = pos.coords.latitude;
-  var lng = pos.coords.longitude;
-  var acc = Math.round(pos.coords.accuracy);
-
-  var latEl = document.getElementById('gpsLat');
-  var lngEl = document.getElementById('gpsLng');
-  var accEl = document.getElementById('gpsAcc');
-  var strip = document.getElementById('gpsCoordStrip');
-  if(latEl) latEl.textContent = lat.toFixed(5);
-  if(lngEl) lngEl.textContent = lng.toFixed(5);
-  if(accEl) accEl.textContent = acc+'m';
-  if(strip) strip.classList.add('show');
-
-  // Reverse geocode via Nominatim (OpenStreetMap — free, no API key needed)
-  var url = 'https://nominatim.openstreetmap.org/reverse?lat='+lat+'&lon='+lng+'&format=json&addressdetails=1&accept-language=en';
-  var xhr = new XMLHttpRequest();
-  xhr.open('GET', url, true);
-  xhr.setRequestHeader('User-Agent','ContactBook-AddressPicker');
-  xhr.onreadystatechange = function(){
-    if(xhr.readyState !== 4) return;
-    gpsSetLoading(false);
-    if(xhr.status === 200){
-      try{
-        var data = JSON.parse(xhr.responseText);
-        if(data && data.address){
-          gpsFillFields(data.address);
-          gpsSetSuccess();
-        } else {
-          gpsShowError('Location found but address could not be resolved. Please fill manually.');
-          gpsSetSuccess();
-        }
-      } catch(e){
-        gpsShowError('Could not parse address response. Please fill manually.');
-      }
-    } else {
-      gpsShowError('Reverse geocode failed (status '+xhr.status+'). Please fill manually.');
-    }
-  };
-  xhr.onerror = function(){
-    gpsSetLoading(false);
-    gpsShowError('Network error during reverse geocode. Please fill manually.');
-  };
-  xhr.send();
-}
-
-function gpsOnError(err){
-  gpsSetLoading(false);
-  var msgs = {
-    1:'Location access denied. Please allow location permission and try again.',
-    2:'Location unavailable. Make sure GPS is enabled on your device.',
-    3:'Location request timed out. Please try again.'
-  };
-  gpsShowError(msgs[err.code] || 'Could not get your location.');
-}
-
-function gpsFillFields(a){
-  // Build street from house number + road + suburb/neighbourhood
-  var streetParts = [];
-  if(a.house_number)  streetParts.push(a.house_number);
-  if(a.road)          streetParts.push(a.road);
-  if(a.suburb)        streetParts.push(a.suburb);
-  if(a.neighbourhood) streetParts.push(a.neighbourhood);
-  var street = streetParts.join(', ');
-
-  // Address line 1 = building/area detail
-  var addr1Parts = [];
-  if(a.amenity)      addr1Parts.push(a.amenity);
-  if(a.building)     addr1Parts.push(a.building);
-  if(a.quarter)      addr1Parts.push(a.quarter);
-  var addr1 = addr1Parts.join(', ') || (a.suburb || a.neighbourhood || '');
-
-  var city    = a.city    || a.town    || a.village || a.county || '';
-  var state   = a.state   || '';
-  var zip     = a.postcode|| '';
-  var country = a.country || '';
-
-  gpsSetField('fi_street_address',  street);
-  gpsSetField('fi_address_line1',   addr1);
-  gpsSetField('fi_city',            city);
-  gpsSetField('fi_state',           state);
-  gpsSetField('fi_zip',             zip);
-  gpsSetField('fi_country',         country);
-
-  // Clear any validation errors on filled fields
-  var filled = ['street_address','address_line1','city','state','zip','country'];
-  for(var i=0;i<filled.length;i++){
-    if(document.getElementById('fi_'+filled[i]) && document.getElementById('fi_'+filled[i]).value)
-      clearFieldError(filled[i]);
-  }
-}
-
-function gpsSetField(id, value){
-  var el = document.getElementById(id);
-  if(!el) return;
-  el.value = value || '';
-  if(value) el.classList.add('gps-filled');
-  else el.classList.remove('gps-filled');
-  // Clear error if now has value
-  if(value && el.classList.contains('error')) el.classList.remove('error');
-}
-
-function gpsSetLoading(on){
-  var btn = document.getElementById('gpsFillBtn');
-  if(!btn) return;
-  btn.disabled = on;
-  btn.classList.remove('gps-ok');
-  if(on){
-    btn.innerHTML = '<span class="gps-spinner"></span><span>Getting location…</span>';
-  } else {
-    btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="3" fill="white"/><path d="M9 1v2.5M9 14.5V17M1 9h2.5M14.5 9H17" stroke="white" stroke-width="1.6" stroke-linecap="round"/><circle cx="9" cy="9" r="7" stroke="white" stroke-width="1.2" stroke-dasharray="2.5 2"/></svg><span>Use my current location</span>';
-  }
-}
-
-function gpsSetSuccess(){
-  var btn = document.getElementById('gpsFillBtn');
-  if(!btn) return;
-  btn.disabled = false;
-  btn.classList.add('gps-ok');
-  btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7.5" fill="rgba(255,255,255,.2)"/><path d="M5 9.5L7.5 12L13 6.5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Location detected — tap to refresh</span>';
-  showToast('Address auto-filled from GPS!','success');
-}
-
-function gpsShowError(msg){
-  var el  = document.getElementById('gpsError');
-  var txt = document.getElementById('gpsErrorTxt');
-  if(el)  el.classList.add('show');
-  if(txt) txt.textContent = msg;
-}
-
-function gpsHideError(){
-  var el = document.getElementById('gpsError');
-  if(el) el.classList.remove('show');
-}
-
 // ── Google Places Autocomplete ─────────────────────────────────────────────
 var googleLoaded = false;
 
 function loadGoogleMaps(){
-  if(!FF_GOOGLE_PLACES) return;
   if(googleLoaded || !GOOGLE_API_KEY || GOOGLE_API_KEY==='YOUR_GOOGLE_API_KEY') return;
   googleLoaded = true;
   var s = document.createElement('script');
