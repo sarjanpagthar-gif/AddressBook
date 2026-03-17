@@ -26,12 +26,46 @@ switch ($action) {
     case 'approve':      handleApprove();     break;
     case 'reject':       handleReject();      break;
     case 'export':       handleExport();      break;
-    case 'audit_log':    handleAuditLog();    break;
+    case 'audit_log':       handleAuditLog();       break;
+    case 'surname_suggest':  handleSurnameSuggest();  break;
+    case 'hometown_suggest': handleHometownSuggest(); break;
+    case 'mobile_check':     handleMobileCheck();     break;
     default:
         echo json_encode(['success'=>false,'message'=>'Invalid action: '.$action]);
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Check if mobile number already exists ────────────────────────────────────
+function isMobileDuplicate($db, $mo_no, $exclude_id = 0) {
+    if (empty($mo_no)) return false;
+    // Clean number — digits only for comparison
+    $clean = preg_replace('/[^0-9]/', '', $mo_no);
+    if (strlen($clean) < 8) return false;
+
+    $stmt = $db->prepare(
+        "SELECT id, first_name, last_name FROM contacts
+         WHERE REGEXP_REPLACE(mo_no, '[^0-9]', '') = ?
+         AND id != ?
+         LIMIT 1"
+    );
+    if (!$stmt) {
+        // Fallback if REGEXP_REPLACE not supported (MySQL < 8)
+        $stmt = $db->prepare(
+            "SELECT id, first_name, last_name FROM contacts
+             WHERE mo_no = ? AND id != ?
+             LIMIT 1"
+        );
+        if (!$stmt) return false;
+        $stmt->bind_param('si', $mo_no, $exclude_id);
+    } else {
+        $stmt->bind_param('si', $clean, $exclude_id);
+    }
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    return $row ?: false;
+}
+
 function getBody() {
     $raw  = file_get_contents('php://input');
     if (!$raw) $raw = '{}';
@@ -118,6 +152,22 @@ function handleCreate() {
         echo json_encode(['success'=>false,'message'=>'First name is required']); return;
     }
 
+    // Check for duplicate mobile number
+    $mo_no = s($d,'mo_no');
+    if (!empty($mo_no)) {
+        $dup = isMobileDuplicate($db, $mo_no, 0);
+        if ($dup) {
+            $db->close();
+            echo json_encode([
+                'success' => false,
+                'message' => 'Mobile number already exists for ' . $dup['first_name'] . ' ' . $dup['last_name'] . ' (ID: ' . $dup['id'] . ')',
+                'duplicate_mobile' => true,
+                'existing_contact' => $dup['first_name'] . ' ' . $dup['last_name']
+            ]);
+            return;
+        }
+    }
+
     $sql = "INSERT INTO `contacts`
         (`first_name`,`last_name`,`statuz`,`approval_status`,`owner_id`,
          `dob`,`gender`,`father_name`,`mother_name`,
@@ -181,9 +231,18 @@ function handleCreate() {
 
     if ($stmt->execute()) {
         $new_id = (int)$db->insert_id;
-        logPending($db, $new_id, 'create', $d);
-        $stmt->close(); $db->close();
-        echo json_encode(['success'=>true,'id'=>$new_id,'message'=>'Contact submitted for approval']);
+        if (FEATURE_APPROVAL) {
+            // Approval ON — queue as pending
+            logPending($db, $new_id, 'create', $d);
+            $stmt->close(); $db->close();
+            echo json_encode(['success'=>true,'id'=>$new_id,'message'=>'Contact submitted for approval']);
+        } else {
+            // Approval OFF — approve immediately
+            $upd = $db->prepare("UPDATE contacts SET approval_status='approved', statuz='active' WHERE id=?");
+            $upd->bind_param('i',$new_id); $upd->execute(); $upd->close();
+            $stmt->close(); $db->close();
+            echo json_encode(['success'=>true,'id'=>$new_id,'message'=>'Contact saved successfully']);
+        }
     } else {
         $err = $stmt->error;
         $stmt->close(); $db->close();
@@ -196,13 +255,38 @@ function handleUpdate() {
     $db = getDB();
     $d  = getBody();
     if (empty($d['id'])) { echo json_encode(['success'=>false,'message'=>'ID required']); return; }
-    logPending($db, n($d,'id'), 'update', $d);
     $id = n($d,'id');
-    $stmt = $db->prepare("UPDATE `contacts` SET `approval_status`='pending' WHERE `id`=?");
-    if (!$stmt) { echo json_encode(['success'=>false,'message'=>$db->error]); return; }
-    $stmt->bind_param('i',$id);
-    $stmt->execute(); $stmt->close(); $db->close();
-    echo json_encode(['success'=>true,'message'=>'Change submitted for approval']);
+
+    // Check for duplicate mobile number (exclude current contact)
+    $mo_no_upd = s($d,'mo_no');
+    if (!empty($mo_no_upd)) {
+        $dup = isMobileDuplicate($db, $mo_no_upd, $id);
+        if ($dup) {
+            $db->close();
+            echo json_encode([
+                'success' => false,
+                'message' => 'Mobile number already exists for ' . $dup['first_name'] . ' ' . $dup['last_name'] . ' (ID: ' . $dup['id'] . ')',
+                'duplicate_mobile' => true,
+                'existing_contact' => $dup['first_name'] . ' ' . $dup['last_name']
+            ]);
+            return;
+        }
+    }
+
+    if (FEATURE_APPROVAL) {
+        // Approval ON — queue as pending
+        logPending($db, $id, 'update', $d);
+        $stmt = $db->prepare("UPDATE `contacts` SET `approval_status`='pending' WHERE `id`=?");
+        if (!$stmt) { echo json_encode(['success'=>false,'message'=>$db->error]); return; }
+        $stmt->bind_param('i',$id);
+        $stmt->execute(); $stmt->close(); $db->close();
+        echo json_encode(['success'=>true,'message'=>'Change submitted for approval']);
+    } else {
+        // Approval OFF — apply changes directly
+        applyUpdate($db, $id, $d);
+        $db->close();
+        echo json_encode(['success'=>true,'message'=>'Contact updated successfully']);
+    }
 }
 
 // ── DELETE ────────────────────────────────────────────────────────────────────
@@ -211,12 +295,23 @@ function handleDelete() {
     $d  = getBody();
     $id = n($d,'id');
     if (!$id) { echo json_encode(['success'=>false,'message'=>'ID required']); return; }
-    logPending($db, $id, 'delete', ['id'=>$id]);
-    $stmt = $db->prepare("UPDATE `contacts` SET `approval_status`='pending' WHERE `id`=?");
-    if (!$stmt) { echo json_encode(['success'=>false,'message'=>$db->error]); return; }
-    $stmt->bind_param('i',$id);
-    $stmt->execute(); $stmt->close(); $db->close();
-    echo json_encode(['success'=>true,'message'=>'Delete request submitted for approval']);
+
+    if (FEATURE_APPROVAL) {
+        // Approval ON — queue as pending
+        logPending($db, $id, 'delete', ['id'=>$id]);
+        $stmt = $db->prepare("UPDATE `contacts` SET `approval_status`='pending' WHERE `id`=?");
+        if (!$stmt) { echo json_encode(['success'=>false,'message'=>$db->error]); return; }
+        $stmt->bind_param('i',$id);
+        $stmt->execute(); $stmt->close(); $db->close();
+        echo json_encode(['success'=>true,'message'=>'Delete request submitted for approval']);
+    } else {
+        // Approval OFF — delete immediately
+        $stmt = $db->prepare("DELETE FROM `contacts` WHERE `id`=?");
+        if (!$stmt) { echo json_encode(['success'=>false,'message'=>$db->error]); return; }
+        $stmt->bind_param('i',$id);
+        $stmt->execute(); $stmt->close(); $db->close();
+        echo json_encode(['success'=>true,'message'=>'Contact deleted successfully']);
+    }
 }
 
 // ── PENDING LIST ──────────────────────────────────────────────────────────────
@@ -452,6 +547,80 @@ function handleAuditLog() {
         'pages'   => (int)ceil($total/$limit),
         'page'    => $page,
     ]);
+}
+
+// ── SURNAME SUGGEST ──────────────────────────────────────────────────────────────
+function handleSurnameSuggest() {
+    $q = isset($_GET['q']) ? trim($_GET['q']) : '';
+    if ($q === '') { echo json_encode(['success'=>true,'data'=>[]]); return; }
+
+    $db   = getDB();
+    $like = '%' . $db->real_escape_string($q) . '%';
+
+    // Distinct last_names that contain the search string, ordered by frequency
+    $stmt = $db->prepare(
+        "SELECT last_name, COUNT(*) AS cnt
+         FROM contacts
+         WHERE last_name LIKE ? AND last_name <> ''
+         GROUP BY last_name
+         ORDER BY cnt DESC, last_name ASC
+         LIMIT 10"
+    );
+    if (!$stmt) { echo json_encode(['success'=>false,'message'=>$db->error]); return; }
+    $stmt->bind_param('s', $like);
+    $stmt->execute();
+    $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+    $db->close();
+
+    echo json_encode(['success'=>true, 'data'=>$rows]);
+}
+
+// ── MOBILE CHECK (live duplicate check while typing) ─────────────────────────
+function handleMobileCheck() {
+    $mo  = isset($_GET['mo']) ? trim($_GET['mo']) : '';
+    $eid = isset($_GET['exclude_id']) ? (int)$_GET['exclude_id'] : 0;
+    if (empty($mo)) { echo json_encode(['success'=>true,'available'=>true]); return; }
+
+    $db  = getDB();
+    $dup = isMobileDuplicate($db, $mo, $eid);
+    $db->close();
+
+    if ($dup) {
+        echo json_encode([
+            'success'   => true,
+            'available' => false,
+            'message'   => 'Already used by ' . $dup['first_name'] . ' ' . $dup['last_name'],
+        ]);
+    } else {
+        echo json_encode(['success'=>true,'available'=>true]);
+    }
+}
+
+// ── HOMETOWN SUGGEST ─────────────────────────────────────────────────────────
+function handleHometownSuggest() {
+    $q = isset($_GET['q']) ? trim($_GET['q']) : '';
+    if ($q === '') { echo json_encode(['success'=>true,'data'=>[]]); return; }
+
+    $db   = getDB();
+    $like = '%' . $db->real_escape_string($q) . '%';
+
+    $stmt = $db->prepare(
+        "SELECT Home_Town, COUNT(*) AS cnt
+         FROM contacts
+         WHERE Home_Town LIKE ? AND Home_Town <> ''
+         GROUP BY Home_Town
+         ORDER BY cnt DESC, Home_Town ASC
+         LIMIT 10"
+    );
+    if (!$stmt) { echo json_encode(['success'=>false,'message'=>$db->error]); return; }
+    $stmt->bind_param('s', $like);
+    $stmt->execute();
+    $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+    $db->close();
+
+    echo json_encode(['success'=>true, 'data'=>$rows]);
 }
 
 // ── INTERNAL: log pending change ──────────────────────────────────────────────

@@ -18,6 +18,7 @@ $FLAG_META = [
   'FEATURE_GOOGLE_PLACES' => ['label'=>'Google Places',         'group'=>'Features',          'desc'=>'Address autocomplete from Google'],
   'FEATURE_COPY_ADDR'     => ['label'=>'Copy Address Button',   'group'=>'Features',          'desc'=>'Copy current address to Vatan address'],
   'FEATURE_GPS_FILL'      => ['label'=>'GPS Auto-fill',         'group'=>'Features',          'desc'=>'Use current location to auto-fill current address'],
+  'FEATURE_PHONE_VISIBILITY' => ['label'=>'Phone Show/Hide',     'group'=>'Features',          'desc'=>'Show toggle button to reveal/hide phone numbers'],
   // Validation flags
   'VALIDATE_FIRST_NAME'   => ['label'=>'First name',            'group'=>'Basic info',        'desc'=>'Required field'],
   'VALIDATE_LAST_NAME'    => ['label'=>'Last name',             'group'=>'Basic info',        'desc'=>'Required field'],

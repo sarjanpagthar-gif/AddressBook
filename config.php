@@ -22,11 +22,12 @@ define('OTP_RESEND_COOLDOWN', 60);    // Seconds before resend is allowed
 // ── App features ────────────────────────────────────────────
 define('FEATURE_WA_OTP', false);   // WhatsApp OTP required before approve/reject
 define('FEATURE_OTP_FALLBACK', false);   // Show OTP on screen if WhatsApp delivery fails
-define('FEATURE_EXPORT',        true);   // Allow Excel export on contacts page
+define('FEATURE_EXPORT', false);   // Allow Excel export on contacts page
 define('FEATURE_APPROVAL',      true);   // Enable approval workflow (pending → approve/reject)
 define('FEATURE_GOOGLE_PLACES', false);   // Google Places address autocomplete
 define('FEATURE_COPY_ADDR',     true);   // Show "Copy to Vatan address" button in form
-define('FEATURE_GPS_FILL', true);   // Show "Use my current location" GPS auto-fill button
+define('FEATURE_GPS_FILL',      true);   // Show "Use my current location" GPS auto-fill button
+define('FEATURE_PHONE_VISIBILITY', true);  // Allow show/hide phone toggle on contacts page
 
 // ============================================================
 //  FIELD VALIDATION FLAGS
@@ -69,7 +70,7 @@ define('VALIDATE_VATAN_COUNTRY',    true);   // required, min 2 chars
 define('DB_HOST', 'sql301.infinityfree.com');
 define('DB_USER', 'if0_41373306');
 define('DB_PASS', 'Gautami1993');
-define('DB_NAME', 'if0_41373306_contactbook');
+define('DB_NAME', 'if0_41373306_address_book_prod');
 
 function getDB() {
     $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);

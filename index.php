@@ -29,7 +29,15 @@ $vflags = json_encode([
   'Vatan_country'    => VALIDATE_VATAN_COUNTRY,
 ]);
 
-$gplaces_on  = FEATURE_GOOGLE_PLACES ? 'true' : 'false';
+$export_on    = FEATURE_EXPORT         ? 'true' : 'false';
+$approval_on  = FEATURE_APPROVAL       ? 'true' : 'false';
+// Column visibility flags — derived from feature flags
+$phone_col_on  = FEATURE_PHONE_VISIBILITY ? 'true' : 'false'; // true=column visible, false=column hidden
+$col_addr_on   = 'true'; // current address always shown
+$col_vatan_on  = 'true'; // vatan address always shown
+$col_status_on = 'true'; // status always shown
+$col_export_on = FEATURE_EXPORT ? 'true' : 'false'; // checkbox col only if export on
+$gplaces_on  = FEATURE_GOOGLE_PLACES  ? 'true' : 'false';
 $copyaddr_on = FEATURE_COPY_ADDR      ? 'true' : 'false';
 $gpsfill_on  = FEATURE_GPS_FILL       ? 'true' : 'false';
 ?>
@@ -84,24 +92,58 @@ tr.selected td{background:#EAF3DE}
 .avatar{width:30px;height:30px;border-radius:50%;background:#B5D4F4;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#0C447C;vertical-align:middle;margin-right:6px;flex-shrink:0}
 .actions{display:flex;gap:5px}
 .phone-links{display:flex;align-items:center;gap:5px;flex-wrap:nowrap}
+.phone-masked{display:inline-flex;align-items:center;gap:5px;font-size:13px;color:#888;letter-spacing:.08em;cursor:pointer;padding:3px 8px;border-radius:6px;background:#f5f5f3;border:1px solid #e0e0dd;user-select:none;-webkit-user-select:none}
+.phone-masked:hover{background:#e8e8e5}
+.phone-masked svg{width:12px;height:12px;flex-shrink:0;color:#aaa}
+.btn-phone-toggle{background:#fff;border:1px solid #ddd;color:#555}
+.phones-hidden .phone-col-th,
+.phones-hidden .phone-col-td{ display:none!important }
+.phones-hidden .phone-col-card{ display:none!important }
+.btn-phone-toggle.phones-visible{background:#E6F1FB;border-color:#B5D4F4;color:#185FA5}
 .call-link{display:inline-flex;align-items:center;gap:3px;padding:3px 7px;border-radius:6px;font-size:12px;font-weight:500;text-decoration:none;white-space:nowrap;border:1px solid}
 .call-link.tel{background:#EAF3DE;color:#0F6E56;border-color:#C0DD97}
 .call-link.tel:hover{background:#C0DD97}
 .call-link.wa{background:#E6FBF0;color:#075E54;border-color:#9FE1CB}
 .call-link.wa:hover{background:#9FE1CB}
 .call-link svg{width:12px;height:12px;flex-shrink:0}
+/* Home town pill — same shape as call-link but transparent */
+.hometown-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;font-size:12px;font-weight:500;white-space:nowrap;border:1px solid #ddd;background:transparent;color:#555}
+.hometown-pill svg{width:12px;height:12px;flex-shrink:0;color:#888}
+/* Phone + hometown row in accordion */
+.acc-contact-row{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:10px}
 
-/* Mobile card list (hidden on desktop) */
+/* Mobile accordion card list (hidden on desktop) */
 .card-list{display:none}
-.contact-card{background:#fff;border:1px solid #e0e0dd;border-radius:12px;padding:14px;margin-bottom:10px;position:relative}
-.contact-card-header{display:flex;align-items:center;gap:10px;margin-bottom:8px}
-.contact-card-name{font-size:15px;font-weight:500;flex:1}
-.contact-card-body{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-.contact-card-field{font-size:12px}
-.contact-card-field span{color:#888;display:block;font-size:11px}
-.contact-card-actions{display:flex;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid #f0f0ee}
-.contact-card-actions .btn{flex:1;justify-content:center}
-.card-checkbox{position:absolute;top:14px;right:14px}
+
+/* Compact accordion row */
+.acc-card{background:#fff;border:1px solid #e0e0dd;border-radius:12px;margin-bottom:8px;overflow:hidden;transition:box-shadow .15s}
+.acc-card.open{box-shadow:0 4px 16px rgba(0,0,0,.09)}
+
+/* Collapsed header row — always visible */
+.acc-header{display:flex;align-items:center;gap:10px;padding:11px 13px;cursor:pointer;-webkit-user-select:none;user-select:none;position:relative}
+.acc-avatar{width:36px;height:36px;border-radius:50%;background:#B5D4F4;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#0C447C;flex-shrink:0}
+.acc-name{font-size:14px;font-weight:600;color:#1a1a18;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acc-meta{font-size:11px;color:#888;white-space:nowrap}
+.acc-pills{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:3px}
+.acc-pill{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:500;text-decoration:none;white-space:nowrap;border:1px solid;-webkit-appearance:none;cursor:pointer;background:transparent}
+.acc-pill.tel{color:#0F6E56;border-color:#C0DD97}
+.acc-pill.town{color:#185FA5;border-color:#B5D4F4}
+.acc-pill svg{width:10px;height:10px;flex-shrink:0}
+.acc-chevron{width:16px;height:16px;flex-shrink:0;color:#aaa;transition:transform .22s}
+.acc-card.open .acc-chevron{transform:rotate(180deg)}
+.acc-cb{flex-shrink:0}
+
+/* Expanded body — hidden by default */
+.acc-body{display:none;border-top:1px solid #f0f0ee;padding:12px 13px;display:none}
+.acc-card.open .acc-body{display:block}
+
+/* Fields inside expanded body */
+.acc-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.acc-field{font-size:12px;color:#1a1a18}
+.acc-field-label{font-size:10px;font-weight:600;color:#aaa;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+.acc-field.full{grid-column:1/-1}
+.acc-actions{display:flex;gap:8px}
+.acc-actions .btn{flex:1;justify-content:center;padding:9px 10px}
 
 /* Show cards on mobile, hide table */
 @media(max-width:640px){
@@ -168,6 +210,24 @@ tr.selected td{background:#EAF3DE}
 .toast-info{background:#E6F1FB;color:#185FA5;border:1px solid #B5D4F4}
 .loading{text-align:center;padding:2.5rem;color:#888;font-size:13px}
 .note{font-size:12px;color:#854F0B;background:#FAEEDA;padding:8px 12px;border-radius:8px;margin-bottom:1rem;line-height:1.5}
+/* Sur name autocomplete */
+.sn-wrap{position:relative}
+.sn-dropdown{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:500;max-height:220px;overflow-y:auto;display:none;margin-top:3px}
+.sn-dropdown.open{display:block}
+.sn-item{padding:9px 12px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid #f5f5f3;color:#1a1a18}
+.sn-item:last-child{border-bottom:none}
+.sn-item:hover,.sn-item.active{background:#E6F1FB}
+.sn-item mark{background:none;color:#185FA5;font-weight:700;padding:0}
+.sn-item-count{font-size:11px;color:#aaa;white-space:nowrap;flex-shrink:0}
+.sn-new{color:#0F6E56;font-weight:600}
+.sn-new svg{flex-shrink:0}
+.sn-empty{padding:9px 12px;font-size:12px;color:#aaa;font-style:italic}
+.mobile-dup-warn{font-size:11px;color:#A32D2D;margin-top:3px;display:none;align-items:center;gap:4px;background:#FCEBEB;border:1px solid #F7C1C1;border-radius:6px;padding:4px 8px}
+.mobile-dup-warn.show{display:flex}
+.mobile-ok{font-size:11px;color:#0F6E56;margin-top:3px;display:none;align-items:center;gap:4px}
+.mobile-ok.show{display:flex}
+.sn-spinner{display:inline-block;width:12px;height:12px;border:2px solid #ddd;border-top-color:#185FA5;border-radius:50%;animation:snSpin .6s linear infinite;margin-right:6px;vertical-align:middle}
+@keyframes snSpin{to{transform:rotate(360deg)}}
 .copy-addr-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:#E6F1FB;color:#185FA5;border:1px solid #B5D4F4;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;-webkit-appearance:none;margin-bottom:4px;transition:background .15s}
 .gps-btn{width:100%;padding:10px 14px;background:#0F766E;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .15s;-webkit-appearance:none;margin-bottom:8px}
 .gps-btn:hover:not(:disabled){background:#0D6560}
@@ -190,6 +250,11 @@ tr.selected td{background:#EAF3DE}
 <!-- Google Places API — controlled by FEATURE_GOOGLE_PLACES in config.php -->
 <script>
 var GOOGLE_API_KEY = '<?php echo defined("GOOGLE_API_KEY") ? GOOGLE_API_KEY : "YOUR_GOOGLE_API_KEY"; ?>';
+var FF_EXPORT        = <?php echo $export_on; ?>;
+// Column visibility (driven by feature flags — matches approval screen toggles)
+var COL_EXPORT        = <?php echo $col_export_on; ?>;  // checkbox/select col
+var FF_PHONE_COL = <?php echo $phone_col_on; ?>; // true = Phone column shown, false = hidden
+var FF_APPROVAL      = <?php echo $approval_on; ?>;
 var FF_GOOGLE_PLACES = <?php echo $gplaces_on; ?>;
 var FF_COPY_ADDR    = <?php echo $copyaddr_on; ?>;
 var FF_GPS_FILL     = <?php echo $gpsfill_on; ?>;
@@ -207,7 +272,9 @@ var FF_GPS_FILL     = <?php echo $gpsfill_on; ?>;
     </div>
     <div class="toolbar-right">
       <input class="search-box" placeholder="Search..." id="searchInput">
-      <button class="btn btn-amber" id="exportBtn" onclick="exportSelected()" disabled>&#8595; Export</button>
+
+
+      <?php if(FEATURE_EXPORT): ?><button class="btn btn-amber" id="exportBtn"  onclick="exportSelected()" disabled>&#8595; Export</button><?php endif; ?>
       <button class="btn btn-primary" onclick="openAdd()">+ Add</button>
       <a href="login.php" class="nav-link">&#10003; Approvals</a>
     </div>
@@ -216,16 +283,15 @@ var FF_GPS_FILL     = <?php echo $gpsfill_on; ?>;
   <!-- Desktop table -->
   <div class="table-card">
     <div class="table-wrap">
-      <table>
+      <table id="contactsTable">
         <thead>
           <tr>
-            <th style="width:36px"><input type="checkbox" id="checkAll" onchange="toggleAll(this)"></th>
+            <?php if(FEATURE_EXPORT): ?><th style="width:36px"><input type="checkbox" id="checkAll" onchange="toggleAll(this)"></th><?php endif; ?>
             <th style="min-width:160px">Name</th>
-            <th style="min-width:120px">Phone</th>
+            <th style="min-width:120px" id="thPhone">Phone</th>
             <th style="min-width:100px">Home town</th>
             <th style="min-width:220px">Current address</th>
             <th style="min-width:220px">Vatan address</th>
-            <th style="width:80px">Status</th>
             <th style="width:90px">Actions</th>
           </tr>
         </thead>
@@ -269,10 +335,10 @@ var FF_GPS_FILL     = <?php echo $gpsfill_on; ?>;
   <div class="confirm-box">
     <span class="modal-handle"></span>
     <div class="modal-title">Delete contact</div>
-    <p>This will submit a delete request for approval. The contact will be removed once approved.</p>
+    <p id="deleteModalText"><?php if(FEATURE_APPROVAL): ?>This will submit a delete request for approval. The contact will be removed once approved.<?php else: ?>This will permanently delete the contact. This action cannot be undone.<?php endif; ?></p>
     <div class="confirm-footer">
       <button class="btn" onclick="closeDeleteModal()">Cancel</button>
-      <button class="btn btn-danger" onclick="confirmDelete()">Submit delete request</button>
+      <button class="btn btn-danger" onclick="confirmDelete()"><?php echo FEATURE_APPROVAL ? "Submit delete request" : "Delete permanently"; ?></button>
     </div>
   </div>
 </div>
@@ -294,14 +360,14 @@ var allData = [];
 
 var FIELDS = [
   {id:'first_name',  label:'First name',    ph:'First name',        required:true,  minLen:2, maxLen:50,  errMsg:'First name is required (min 2 chars)'},
-  {id:'last_name',   label:'Last name',     ph:'Last name',         required:true,  minLen:2, maxLen:50,  errMsg:'Last name is required (min 2 chars)'},
-  {id:'dob',         label:'DOB (DD-MM-YYYY)', ph:'15-08-1993',     required:false, pattern:'dob',        errMsg:'Enter valid date as DD-MM-YYYY'},
-  {id:'gender',      label:'Gender',        type:'select', opts:['','male','female','other'], optLabels:['— Select —','Male','Female','Other'], required:true, errMsg:'Please select gender'},
+  {id:'last_name',   label:'Sur name',      ph:'Sur name',          required:true,  minLen:2, maxLen:50,  errMsg:'Sur name is required (min 2 chars)', surname:true},
   {id:'father_name', label:'Father name',   ph:'Father name',       required:true,  minLen:2, maxLen:100, errMsg:'Father name is required (min 2 chars)'},
   {id:'mother_name', label:'Mother name',   ph:'Mother name',       required:true,  minLen:2, maxLen:100, errMsg:'Mother name is required (min 2 chars)'},
+  {id:'dob',         label:'DOB (DD-MM-YYYY)', ph:'15-08-1993',     required:false, pattern:'dob',        errMsg:'Enter valid date as DD-MM-YYYY'},
+  {id:'gender',      label:'Gender',        type:'select', opts:['','male','female','other'], optLabels:['— Select —','Male','Female','Other'], required:true, errMsg:'Please select gender'},
   {id:'mo_no',       label:'Mobile no',     ph:'+91 9999999999',    required:true,  pattern:'phone',      errMsg:'Enter valid 10-digit mobile number'},
   {id:'wp_no',       label:'WhatsApp no',   ph:'+91 9999999999',    required:false, pattern:'phone',      errMsg:'Enter valid 10-digit WhatsApp number'},
-  {id:'Home_Town',   label:'Home town',     ph:'Home town',         required:true,  minLen:2, maxLen:100, errMsg:'Home town is required'},
+  {id:'Home_Town',   label:'Home town',     ph:'Home town',         required:true,  minLen:2, maxLen:100, errMsg:'Home town is required', hometown:true},
   {id:'statuz',      label:'Status',        type:'select', opts:['active','inactive'], optLabels:['Active','Inactive'], required:true, errMsg:'Please select status'},
   {sec:'Current address'},
   {id:'block_no',             label:'Block no',       ph:'Block no',                  required:false, maxLen:50},
@@ -380,24 +446,66 @@ function initials(c){ return ((c.first_name||'')[0]+(c.last_name||'')[0]).toUppe
 function cleanPhone(p){
   return String(p||'').replace(/[\s\-().+]/g,'');
 }
-// Build phone links cell — call + WhatsApp
-function phoneLinks(mo, wp){
-  var html='';
-  var callNo = mo||wp;
-  var waNo   = wp||mo;
-  if(!callNo) return '—';
-  // call link
-  html += '<a class="call-link tel" href="tel:+'+cleanPhone(callNo)+'" onclick="event.stopPropagation()">'+
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 11a19.79 19.79 0 01-3.07-8.67A2 2 0 012 .18h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92z"/></svg>'+
-    'Call</a>';
-  // whatsapp link
-  var waNum = cleanPhone(waNo);
-  if(waNum.length < 10) waNum = waNum; // keep as is
-  html += '<a class="call-link wa" href="https://wa.me/'+waNum+'" target="_blank" onclick="event.stopPropagation()">'+
-    '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>'+
-    'Chat</a>';
-  return '<div class="phone-links">'+html+'</div>';
+// ── Phone show/hide ────────────────────────────────────────────────────────────
+// phonesVisible — true = Phone column shown, false = Phone column hidden
+// Button always shown on index page; toggle shows/hides entire column
+var phonesVisible = FF_PHONE_COL; // start visible if flag ON, hidden if OFF
+
+// Mask: show first 2 + last 2 digits e.g. 98••••••10
+function maskPhone(num){
+  var d = String(num||'').replace(/[^0-9]/g,'');
+  if(d.length >= 4) return d.substr(0,2) + '••••••' + d.substr(-2);
+  return '••••••';
 }
+
+// SVG icons as plain strings — no nesting issues
+var SVG_PHONE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 11a19.79 19.79 0 01-3.07-8.67A2 2 0 012 .18h3a2 2 0 012 1.72 12.05 12.05 0 00.7 2.81 2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.05 12.05 0 002.81.7A2 2 0 0122 14.92z"/></svg>';
+var SVG_WA    = '<svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a9.15 9.15 0 00-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479s1.065 2.875 1.213 3.074c.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347zm-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884zm8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>';
+var SVG_EYE_OFF = '<path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19M6.34 6.34a3 3 0 104.24 4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+var SVG_EYE_ON  = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+
+function buildCallHtml(callNo, waNo){
+  var tel = cleanPhone(callNo);
+  var wa  = cleanPhone(waNo || callNo);
+  return '<div class="phone-links">'+
+    '<a class="call-link tel" href="tel:+'+tel+'" onclick="event.stopPropagation()">'+SVG_PHONE+'Call</a>'+
+    '<a class="call-link wa" href="https://wa.me/'+wa+'" target="_blank" onclick="event.stopPropagation()">'+SVG_WA+'Chat</a>'+
+  '</div>';
+}
+
+// phoneLinks — always returns Call/Chat buttons
+// Column visibility is handled via show/hide toggle (phonesVisible)
+function phoneLinks(mo, wp){
+  var callNo = mo || wp;
+  var waNo   = wp || mo;
+  if(!callNo) return '—';
+  return buildCallHtml(callNo, waNo);
+}
+
+// Reveal single row on tap
+function revealPhone(el){
+  var mo = el.getAttribute('data-mo');
+  var wp = el.getAttribute('data-wp');
+  el.outerHTML = buildCallHtml(mo||wp, wp||mo);
+}
+
+// Toggle button — show/hide Phone column (th + td + cards)
+function togglePhoneVisibility(){
+  phonesVisible = !phonesVisible;
+
+  var btn = document.getElementById('phoneToggleBtn');
+  var txt = document.getElementById('phoneToggleTxt');
+  var ico = document.getElementById('phoneToggleIcon');
+  if(txt) txt.textContent = phonesVisible ? 'Hide phones' : 'Show phones';
+  if(btn) btn.classList.toggle('phones-visible', phonesVisible);
+  if(ico) ico.innerHTML  = phonesVisible ? SVG_EYE_ON : SVG_EYE_OFF;
+
+  // Re-render so phoneLinks() shows correct state
+  renderTable(allData);
+  renderCards(allData);
+}
+
+
 
 // Build concatenated address string
 function fullAddr(c, prefix) {
@@ -425,7 +533,11 @@ function fullAddr(c, prefix) {
 // Desktop table
 function renderTable(data){
   var tbody=document.getElementById('tableBody');
-  if(!data.length){tbody.innerHTML='<tr><td colspan="10" class="loading">No approved contacts found</td></tr>';updateSelUI();return;}
+  if(!data.length){
+    var nc=document.querySelectorAll('thead tr th').length||8;
+    tbody.innerHTML='<tr><td colspan="'+nc+'" class="loading">No approved contacts found</td></tr>';
+    updateSelUI();return;
+  }
   var html='';
   for(var i=0;i<data.length;i++){
     var c=data[i];
@@ -434,13 +546,12 @@ function renderTable(data){
     var curAddr=fullAddr(c,'');
     var vatAddr=fullAddr(c,'Vatan_');
     html+='<tr class="'+sel+'">' +
-      '<td><input type="checkbox" class="row-cb" value="'+c.id+'"'+chk+' onchange="toggleRowCb(this,'+c.id+')"></td>'+
+      (COL_EXPORT?'<td><input type="checkbox" class="row-cb" value="'+c.id+'"'+chk+' onchange="toggleRowCb(this,'+c.id+')"></td>':'')+
       '<td><span class="avatar">'+initials(c)+'</span>'+esc(c.first_name)+' '+esc(c.last_name)+'</td>'+
-      '<td>'+phoneLinks(c.mo_no,c.wp_no)+'</td>'+
+      (phonesVisible?'<td>'+phoneLinks(c.mo_no,c.wp_no)+'</td>':'')+
       '<td>'+esc(c.Home_Town||'—')+'</td>'+
       '<td style="white-space:normal;font-size:12px;color:#444;max-width:220px">'+esc(curAddr||'—')+'</td>'+
       '<td style="white-space:normal;font-size:12px;color:#444;max-width:220px">'+esc(vatAddr||'—')+'</td>'+
-      '<td><span class="badge badge-'+c.statuz+'">'+c.statuz+'</span></td>'+
       '<td><div class="actions">'+
         '<button class="btn btn-sm btn-edit" onclick="openEdit('+c.id+')">Edit</button>'+
         '<button class="btn btn-sm btn-danger" onclick="openDelete('+c.id+')">Del</button>'+
@@ -450,7 +561,7 @@ function renderTable(data){
   updateSelUI();
 }
 
-// Mobile cards
+// Mobile accordion cards
 function renderCards(data){
   var list=document.getElementById('cardList');
   if(!data.length){list.innerHTML='<div class="loading">No approved contacts found</div>';return;}
@@ -460,36 +571,101 @@ function renderCards(data){
     var chk=selectedIds[c.id]?' checked':'';
     var curAddr=fullAddr(c,'');
     var vatAddr=fullAddr(c,'Vatan_');
-    html+='<div class="contact-card">'+
-      '<input type="checkbox" class="card-checkbox row-cb" value="'+c.id+'"'+chk+' onchange="toggleRowCb(this,'+c.id+')">'+
-      '<div class="contact-card-header">'+
-        '<span class="avatar" style="width:38px;height:38px;font-size:13px">'+initials(c)+'</span>'+
-        '<div class="contact-card-name">'+esc(c.first_name)+' '+esc(c.last_name)+'</div>'+
-        '<span class="badge badge-'+c.statuz+'">'+c.statuz+'</span>'+
-      '</div>'+
-      '<div class="contact-card-body">'+
-        (c.mo_no||c.wp_no?'<div class="contact-card-field" style="grid-column:1/-1"><span>Contact</span>'+phoneLinks(c.mo_no,c.wp_no)+'</div>':'')+
-        (c.Home_Town?'<div class="contact-card-field"><span>Home town</span>'+esc(c.Home_Town)+'</div>':'')+
-        (curAddr?'<div class="contact-card-field" style="grid-column:1/-1"><span>Current address</span><span style="font-size:12px;color:#444">'+esc(curAddr)+'</span></div>':'')+
-        (vatAddr?'<div class="contact-card-field" style="grid-column:1/-1"><span>Vatan address</span><span style="font-size:12px;color:#444">'+esc(vatAddr)+'</span></div>':'')+
-        (c.city?'<div class="contact-card-field"><span>City</span>'+esc(c.city)+'</div>':'')+
-      '</div>'+
-      '<div class="contact-card-actions">'+
-        '<button class="btn btn-edit" onclick="openEdit('+c.id+')">Edit</button>'+
-        '<button class="btn btn-danger" onclick="openDelete('+c.id+')">Delete</button>'+
-      '</div>'+
-    '</div>';
+    var ini=initials(c);
+    var fullName=esc(c.first_name)+' '+esc(c.last_name);
+    // Compact meta shown in header: phone if visible, else home town
+    // Header pills: Home town (left) | Phone (right)
+    var townPill = c.Home_Town
+      ? '<span class="acc-pill town" onclick="event.stopPropagation()">'+
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>'+
+          esc(c.Home_Town)+'</span>'
+      : '';
+    var phonePill = (phonesVisible && c.mo_no)
+      ? '<a class="acc-pill tel" href="tel:+'+cleanPhone(c.mo_no)+'" onclick="event.stopPropagation()">'+
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 11a19.79 19.79 0 01-3.07-8.67A2 2 0 012 .18h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92z"/></svg>'+
+          esc(c.mo_no)+'</a>'
+      : '';
+
+    html+=
+      '<div class="acc-card" id="acc-'+c.id+'">'+
+
+        // ── Collapsed header (always visible) ──
+        '<div class="acc-header" onclick="accToggle('+c.id+')">'+
+          (COL_EXPORT?'<input type="checkbox" class="acc-cb row-cb" value="'+c.id+'"'+chk+' onclick="event.stopPropagation()" onchange="toggleRowCb(this,'+c.id+')">':'')+
+          '<span class="acc-avatar">'+ini+'</span>'+
+          '<div style="flex:1;min-width:0">'+
+            '<div class="acc-name">'+fullName+'</div>'+
+            ((townPill||phonePill)?'<div class="acc-pills" style="justify-content:space-between">'+townPill+phonePill+'</div>':'')+
+          '</div>'+
+          '<svg class="acc-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>'+
+        '</div>'+
+
+        // ── Expanded body (hidden until tapped) ──
+        '<div class="acc-body">'+
+          // Phone links + Home town pill on same row
+          '<div class="acc-contact-row">'+
+            (phonesVisible&&(c.mo_no||c.wp_no) ? phoneLinks(c.mo_no,c.wp_no) : '')+
+            (c.Home_Town ?
+              '<span class="hometown-pill">'+
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'+
+                  '<path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>'+
+                  '<polyline points="9 22 9 12 15 12 15 22"/>'+
+                '</svg>'+
+                esc(c.Home_Town)+
+              '</span>' : '')+
+          '</div>'+
+          '<div class="acc-fields">'+
+            // Current address
+            (curAddr?
+              '<div class="acc-field full">'+
+                '<div class="acc-field-label">Current address</div>'+
+                '<div style="color:#444;font-size:12px;line-height:1.5">'+esc(curAddr)+'</div>'+
+              '</div>' : '')+
+            // Vatan address
+            (vatAddr?
+              '<div class="acc-field full">'+
+                '<div class="acc-field-label">Vatan address</div>'+
+                '<div style="color:#444;font-size:12px;line-height:1.5">'+esc(vatAddr)+'</div>'+
+              '</div>' : '')+
+          '</div>'+
+          // Action buttons
+          '<div class="acc-actions">'+
+            '<button class="btn btn-edit" onclick="openEdit('+c.id+')">&#9998; Edit</button>'+
+            '<button class="btn btn-danger" onclick="openDelete('+c.id+')">&#10005; Delete</button>'+
+          '</div>'+
+        '</div>'+
+
+      '</div>';
   }
   list.innerHTML=html;
 }
 
-function changePage(d){currentPage+=d;loadContacts();}
+// Accordion toggle — open one, close others
+function accToggle(id){
+  var cards=document.querySelectorAll('.acc-card');
+  for(var i=0;i<cards.length;i++){
+    var card=cards[i];
+    if(card.id==='acc-'+id){
+      card.classList.toggle('open');
+    } else {
+      card.classList.remove('open'); // close others
+    }
+  }
+}
+
+function changePage(d){currentPage+=d;loadContacts();
+// Apply initial phone column header visibility
+setTimeout(function(){
+  var th = document.getElementById('thPhone');
+  if(th) th.style.display = phonesVisible ? '' : 'none';
+}, 100);}
 document.getElementById('searchInput').addEventListener('input',function(){
   clearTimeout(searchTimer);
   searchTimer=setTimeout(function(){currentPage=1;loadContacts();},350);
 });
 
 function toggleAll(cb){
+  if(!COL_EXPORT) return;
   for(var i=0;i<allData.length;i++){if(cb.checked) selectedIds[allData[i].id]=true; else delete selectedIds[allData[i].id];}
   var cbs=document.querySelectorAll('.row-cb');
   for(var j=0;j<cbs.length;j++){cbs[j].checked=cb.checked;}
@@ -502,11 +678,15 @@ function toggleRowCb(cb,id){
 function updateSelUI(){
   var n=Object.keys(selectedIds).length;
   var sb=document.getElementById('selBadge');
-  sb.textContent=n+' selected'; sb.style.display=n?'inline':'none';
-  document.getElementById('exportBtn').disabled=(n===0);
+  if(COL_EXPORT){ sb.textContent=n+' selected'; sb.style.display=n?'inline':'none'; }
+  else { sb.style.display='none'; }
+  var eb=document.getElementById('exportBtn');
+  if(eb){ if(FF_EXPORT && COL_EXPORT) eb.disabled=(n===0); else eb.style.display='none'; }
   var all=allData.length>0;
   for(var i=0;i<allData.length;i++){if(!selectedIds[allData[i].id]){all=false;break;}}
-  var ca=document.getElementById('checkAll'); if(ca) ca.checked=all;
+  if(COL_EXPORT){
+    var ca=document.getElementById('checkAll'); if(ca) ca.checked=all;
+  }
 }
 
 function buildForm(values){
@@ -577,6 +757,20 @@ function buildForm(values){
           '<input class="fi" id="fi_'+f.id+'" placeholder="'+esc(f.ph||'')+'" value="'+val+'" autocomplete="new-password" data-geocode="1" data-prefix="'+prefix+'">'+
           '<button type="button" class="addr-clear" id="clr_'+f.id+'" onclick="clearAddrField(\'' +f.id+ '\')">&#215;</button>'+
         '</div>';
+      } else if(f.surname){
+        html+='<div class="sn-wrap">'+
+          '<input class="fi" id="fi_'+f.id+'" placeholder="'+esc(f.ph||'')+'" value="'+val+'" autocomplete="off" data-surname="1">'+
+          '<div class="sn-dropdown" id="sn_drop_'+f.id+'"></div>'+
+        '</div>';
+      } else if(f.hometown){
+        html+='<div class="sn-wrap">'+
+          '<input class="fi" id="fi_'+f.id+'" placeholder="'+esc(f.ph||'')+'" value="'+val+'" autocomplete="off" data-hometown="1">'+
+          '<div class="sn-dropdown" id="sn_drop_'+f.id+'"></div>'+
+        '</div>';
+      } else if(f.id==='mo_no'){
+        html+='<input class="fi" id="fi_'+f.id+'" placeholder="'+esc(f.ph||'')+'" value="'+val+'" autocomplete="off">'+
+              '<div class="mobile-dup-warn" id="mob_dup_warn"><svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.75 3.5h1.5v5h-1.5v-5zm0 6h1.5v1.5h-1.5V10.5z"/></svg><span id="mob_dup_txt"></span></div>'+
+              '<div class="mobile-ok" id="mob_ok"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="2 8 6 12 14 4"/></svg><span>Available</span></div>';
       } else {
         html+='<input class="fi" id="fi_'+f.id+'" placeholder="'+esc(f.ph||'')+'" value="'+val+'">';
       }
@@ -594,9 +788,9 @@ function openAdd(){
   document.getElementById('modalNote').innerHTML='';
   document.getElementById('modalBody').innerHTML=buildForm({statuz:'active'});
   document.getElementById('saveBtn').disabled=false;
-  document.getElementById('saveBtn').textContent='Submit for approval';
+  document.getElementById('saveBtn').textContent = FF_APPROVAL ? 'Submit for approval' : 'Save contact';
   document.getElementById('formModal').classList.add('open');
-  setTimeout(attachLiveValidation, 50);
+  setTimeout(function(){ attachLiveValidation(); initSurnameAC(); initHometownAC(); initMobileCheck(); }, 50);
 }
 
 function openEdit(id){
@@ -607,12 +801,14 @@ function openEdit(id){
     if(!c){showToast('Not found','error');return;}
     editId=id;
     document.getElementById('modalTitle').textContent='Edit contact';
-    document.getElementById('modalNote').innerHTML='<div class="note">Changes will be submitted for approval before going live.</div>';
+    document.getElementById('modalNote').innerHTML = FF_APPROVAL
+      ? '<div class="note">Changes will be submitted for approval before going live.</div>'
+      : '';
     document.getElementById('modalBody').innerHTML=buildForm(c);
     document.getElementById('saveBtn').disabled=false;
-    document.getElementById('saveBtn').textContent='Submit for approval';
+    document.getElementById('saveBtn').textContent = FF_APPROVAL ? 'Submit for approval' : 'Save changes';
     document.getElementById('formModal').classList.add('open');
-    setTimeout(attachLiveValidation, 50);
+    setTimeout(function(){ attachLiveValidation(); initSurnameAC(); initHometownAC(); initMobileCheck(); }, 100);
   });
 }
 
@@ -769,7 +965,21 @@ function saveContact(){
   ajax('POST',API+'?action='+(isEdit?'update':'create'),data,function(err,res){
     btn.disabled=false; btn.textContent='Submit for approval';
     if(err){showToast(err,'error');return;}
-    if(res.success){showToast(isEdit?'Change submitted!':'Contact submitted!','info');closeModal();loadContacts();}
+    if(!res.success && res.duplicate_mobile){
+      // Highlight mobile field with duplicate error
+      showFieldError('mo_no', res.message);
+      var mobInp = document.getElementById('fi_mo_no');
+      if(mobInp) mobInp.scrollIntoView({behavior:'smooth',block:'center'});
+      showToast(res.message, 'error');
+      return;
+    }
+    if(res.success){
+      var msg = FF_APPROVAL
+        ? (isEdit ? 'Change submitted for approval!' : 'Contact submitted for approval!')
+        : (isEdit ? 'Contact updated!'               : 'Contact saved!');
+      showToast(msg, FF_APPROVAL ? 'info' : 'success');
+      closeModal(); loadContacts();
+    }
     else showToast(res.message||'Error','error');
   });
 }
@@ -779,12 +989,13 @@ function closeDeleteModal(){document.getElementById('deleteModal').classList.rem
 function confirmDelete(){
   ajax('POST',API+'?action=delete',{id:deleteId},function(err,res){
     if(err){showToast(err,'error');return;}
-    if(res.success){showToast('Delete request submitted','info');closeDeleteModal();loadContacts();}
+    if(res.success){showToast(FF_APPROVAL ? 'Delete request submitted for approval' : 'Contact deleted','info');closeDeleteModal();loadContacts();}
     else showToast(res.message,'error');
   });
 }
 
 function exportSelected(){
+  if(!FF_EXPORT || !COL_EXPORT){ showToast('Export is disabled','error'); return; }
   var ids=[];
   for(var k in selectedIds) ids.push(parseInt(k));
   ajax('POST',API+'?action=export',{ids:ids},function(err,res){
@@ -803,6 +1014,316 @@ function exportSelected(){
 }
 
 loadContacts();
+
+// Apply initial phone column header visibility after first render
+setTimeout(function(){
+  var th = document.getElementById('thPhone');
+  if(th) th.style.display = phonesVisible ? '' : 'none';
+}, 50);
+// ── Sur Name Autocomplete ──────────────────────────────────────────────────────
+var snTimer = null;
+var snActiveIdx = -1;
+
+function initSurnameAC(){
+  var inputs = document.querySelectorAll('[data-surname="1"]');
+  for(var i=0;i<inputs.length;i++){
+    (function(inp){
+      if(inp._snAttached) return;
+      inp._snAttached = true;
+      var dropId = 'sn_drop_' + inp.id.replace('fi_','');
+      var drop   = document.getElementById(dropId);
+      if(!drop) return;
+
+      inp.addEventListener('input', function(){
+        clearTimeout(snTimer);
+        var q = inp.value.trim();
+        if(q.length < 1){ snClose(drop); return; }
+        snTimer = setTimeout(function(){ snFetch(q, inp, drop); }, 250);
+      });
+
+      inp.addEventListener('keydown', function(e){
+        var items = drop.querySelectorAll('.sn-item');
+        if(!items.length) return;
+        if(e.key==='ArrowDown'){
+          e.preventDefault();
+          snActiveIdx = Math.min(snActiveIdx+1, items.length-1);
+          snHighlight(items);
+        } else if(e.key==='ArrowUp'){
+          e.preventDefault();
+          snActiveIdx = Math.max(snActiveIdx-1, 0);
+          snHighlight(items);
+        } else if(e.key==='Enter' && snActiveIdx>=0){
+          e.preventDefault();
+          items[snActiveIdx].click();
+        } else if(e.key==='Escape'){
+          snClose(drop);
+        }
+      });
+
+      // Close on outside click
+      document.addEventListener('mousedown', function(e){
+        if(!inp.contains(e.target) && !drop.contains(e.target)) snClose(drop);
+      });
+    })(inputs[i]);
+  }
+}
+
+function snFetch(q, inp, drop){
+  drop.innerHTML = '<div class="sn-empty"><span class="sn-spinner"></span>Searching...</div>';
+  drop.classList.add('open');
+  snActiveIdx = -1;
+
+  var xsn = new XMLHttpRequest();
+  xsn.open('GET', API+'?action=surname_suggest&q='+encodeURIComponent(q), true);
+  xsn.onreadystatechange = function(){
+    if(xsn.readyState!==4) return;
+    // Strip any PHP warnings before JSON
+    var raw = xsn.responseText;
+    var js  = raw.indexOf('{');
+    if(js>0) raw = raw.substring(js);
+    try{
+      var res = JSON.parse(raw);
+      snRender(res.data||[], q, inp, drop);
+    } catch(e){
+      drop.innerHTML = '<div class="sn-empty">Error loading suggestions</div>';
+    }
+  };
+  xsn.onerror = function(){
+    drop.innerHTML = '<div class="sn-empty">Network error</div>';
+  };
+  xsn.send();
+}
+
+function snRender(list, q, inp, drop){
+  var html = '';
+
+  // Case-insensitive highlight — no regex, no escaping issues
+  function hilight(name, search){
+    var lo  = name.toLowerCase();
+    var sl  = search.toLowerCase();
+    var idx = lo.indexOf(sl);
+    if(idx < 0) return esc(name);
+    return esc(name.substring(0, idx)) +
+           '<mark>' + esc(name.substring(idx, idx + search.length)) + '</mark>' +
+           esc(name.substring(idx + search.length));
+  }
+
+  for(var i=0; i<list.length; i++){
+    var name  = list[i].last_name;
+    var count = list[i].cnt;
+    var hi    = hilight(name, q);
+    html += '<div class="sn-item" data-val="'+esc(name)+'">'+
+      '<span>'+hi+'</span>'+
+      '<span class="sn-item-count">'+count+' contact'+(count>1?'s':'')+' </span>'+
+    '</div>';
+  }
+
+  // "Add new" option — show if no exact match
+  var exactMatch = list.some(function(r){ return r.last_name.toLowerCase()===q.toLowerCase(); });
+  if(!exactMatch){
+    html += '<div class="sn-item sn-new" data-val="'+esc(q)+'">'+
+      '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>'+
+      '<span>Add &ldquo;'+esc(q)+'&rdquo; as new Sur name</span>'+
+    '</div>';
+  }
+
+  if(!html){
+    html = '<div class="sn-empty">No matches found.</div>';
+  }
+
+  drop.innerHTML = html;
+  drop.classList.add('open');
+
+  // Attach click handlers
+  var items = drop.querySelectorAll('.sn-item');
+  for(var j=0; j<items.length; j++){
+    (function(item){
+      item.addEventListener('mousedown', function(e){
+        e.preventDefault();
+        inp.value = item.getAttribute('data-val');
+        snClose(drop);
+        inp.classList.remove('error');
+        var errEl = document.getElementById('err_' + inp.id.replace('fi_',''));
+        if(errEl) errEl.classList.remove('show');
+      });
+    })(items[j]);
+  }
+}
+
+function snHighlight(items){
+  for(var i=0;i<items.length;i++) items[i].classList.toggle('active', i===snActiveIdx);
+  if(items[snActiveIdx]) items[snActiveIdx].scrollIntoView({block:'nearest'});
+}
+
+function snClose(drop){
+  if(drop){ drop.classList.remove('open'); drop.innerHTML=''; }
+  snActiveIdx = -1;
+}
+
+// ── Home Town Autocomplete (reuses sn* helpers) ───────────────────────────────
+var htTimer = null;
+
+function initHometownAC(){
+  var inputs = document.querySelectorAll('[data-hometown="1"]');
+  for(var i=0;i<inputs.length;i++){
+    (function(inp){
+      if(inp._htAttached) return;
+      inp._htAttached = true;
+      var dropId = 'sn_drop_' + inp.id.replace('fi_','');
+      var drop   = document.getElementById(dropId);
+      if(!drop) return;
+
+      inp.addEventListener('input', function(){
+        clearTimeout(htTimer);
+        var q = inp.value.trim();
+        if(q.length < 1){ snClose(drop); return; }
+        htTimer = setTimeout(function(){ htFetch(q, inp, drop); }, 250);
+      });
+
+      inp.addEventListener('keydown', function(e){
+        var items = drop.querySelectorAll('.sn-item');
+        if(!items.length) return;
+        if(e.key==='ArrowDown'){
+          e.preventDefault();
+          snActiveIdx = Math.min(snActiveIdx+1, items.length-1);
+          snHighlight(items);
+        } else if(e.key==='ArrowUp'){
+          e.preventDefault();
+          snActiveIdx = Math.max(snActiveIdx-1, 0);
+          snHighlight(items);
+        } else if(e.key==='Enter' && snActiveIdx>=0){
+          e.preventDefault();
+          items[snActiveIdx].click();
+        } else if(e.key==='Escape'){
+          snClose(drop);
+        }
+      });
+
+      document.addEventListener('mousedown', function(e){
+        if(!inp.contains(e.target) && !drop.contains(e.target)) snClose(drop);
+      });
+    })(inputs[i]);
+  }
+}
+
+function htFetch(q, inp, drop){
+  drop.innerHTML = '<div class="sn-empty"><span class="sn-spinner"></span>Searching...</div>';
+  drop.classList.add('open');
+  snActiveIdx = -1;
+
+  var xht = new XMLHttpRequest();
+  xht.open('GET', API+'?action=hometown_suggest&q='+encodeURIComponent(q), true);
+  xht.onreadystatechange = function(){
+    if(xht.readyState!==4) return;
+    var raw = xht.responseText;
+    var js  = raw.indexOf('{');
+    if(js>0) raw = raw.substring(js);
+    try{
+      var res = JSON.parse(raw);
+      htRender(res.data||[], q, inp, drop);
+    } catch(e){
+      drop.innerHTML = '<div class="sn-empty">Error loading suggestions</div>';
+    }
+  };
+  xht.onerror = function(){ drop.innerHTML = '<div class="sn-empty">Network error</div>'; };
+  xht.send();
+}
+
+function htRender(list, q, inp, drop){
+  var html = '';
+
+  function hilight(name, search){
+    var lo  = name.toLowerCase();
+    var sl  = search.toLowerCase();
+    var idx = lo.indexOf(sl);
+    if(idx < 0) return esc(name);
+    return esc(name.substring(0,idx)) +
+           '<mark>' + esc(name.substring(idx, idx+search.length)) + '</mark>' +
+           esc(name.substring(idx+search.length));
+  }
+
+  for(var i=0; i<list.length; i++){
+    var name  = list[i].Home_Town;
+    var count = list[i].cnt;
+    var hi    = hilight(name, q);
+    html += '<div class="sn-item" data-val="'+esc(name)+'">'+
+      '<span>'+hi+'</span>'+
+      '<span class="sn-item-count">'+count+' contact'+(count>1?'s':'')+' </span>'+
+    '</div>';
+  }
+
+  var exactMatch = list.some(function(r){ return r.Home_Town.toLowerCase()===q.toLowerCase(); });
+  if(!exactMatch){
+    html += '<div class="sn-item sn-new" data-val="'+esc(q)+'">'+
+      '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>'+
+      '<span>Add &ldquo;'+esc(q)+'&rdquo; as new Home town</span>'+
+    '</div>';
+  }
+
+  if(!html) html = '<div class="sn-empty">No matches found.</div>';
+
+  drop.innerHTML = html;
+  drop.classList.add('open');
+
+  var items = drop.querySelectorAll('.sn-item');
+  for(var j=0; j<items.length; j++){
+    (function(item){
+      item.addEventListener('mousedown', function(e){
+        e.preventDefault();
+        inp.value = item.getAttribute('data-val');
+        snClose(drop);
+        inp.classList.remove('error');
+        var errEl = document.getElementById('err_' + inp.id.replace('fi_',''));
+        if(errEl) errEl.classList.remove('show');
+      });
+    })(items[j]);
+  }
+}
+
+// ── Mobile duplicate live check ──────────────────────────────────────────────
+var mobCheckTimer = null;
+
+function initMobileCheck(){
+  var inp = document.getElementById('fi_mo_no');
+  if(!inp || inp._mobAttached) return;
+  inp._mobAttached = true;
+
+  inp.addEventListener('input', function(){
+    clearTimeout(mobCheckTimer);
+    var warn = document.getElementById('mob_dup_warn');
+    var ok   = document.getElementById('mob_ok');
+    if(warn) warn.classList.remove('show');
+    if(ok)   ok.classList.remove('show');
+
+    var val = inp.value.replace(/[^0-9]/g,'');
+    if(val.length < 8) return; // wait for enough digits
+
+    mobCheckTimer = setTimeout(function(){
+      var excludeId = editId || 0;
+      var xmob = new XMLHttpRequest();
+      xmob.open('GET', API+'?action=mobile_check&mo='+encodeURIComponent(inp.value)+'&exclude_id='+excludeId, true);
+      xmob.onreadystatechange = function(){
+        if(xmob.readyState!==4) return;
+        try{
+          var raw = xmob.responseText;
+          var js  = raw.indexOf('{'); if(js>0) raw=raw.substring(js);
+          var res = JSON.parse(raw);
+          if(!res.available){
+            inp.classList.add('error');
+            if(warn){ document.getElementById('mob_dup_txt').textContent = res.message; warn.classList.add('show'); }
+            if(ok)   ok.classList.remove('show');
+          } else {
+            inp.classList.remove('error');
+            if(warn) warn.classList.remove('show');
+            if(ok)   ok.classList.add('show');
+            setTimeout(function(){ if(ok) ok.classList.remove('show'); }, 2000);
+          }
+        } catch(e){}
+      };
+      xmob.send();
+    }, 500);
+  });
+}
 
 // ── GPS Auto-fill (Nominatim / OpenStreetMap — free, no API key) ─────────────
 function gpsAutoFill(){
